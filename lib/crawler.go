@@ -51,23 +51,28 @@ type Crawler struct {
 }
 
 // New creates a new crawler instance
-func New(baseurl string, trace bool, useProxy bool) (*Crawler, error) {
+func New(baseurl string) (*Crawler, error) {
 	var err error
 	err = nil
 	c := new(Crawler)
-	if trace {
-		c.log = lumber.NewConsoleLogger(lumber.TRACE)
-	} else {
-		c.log = lumber.NewConsoleLogger(lumber.WARN)
-	}
 	c.BaseURL = baseurl
 	c.MaxNumberConnections = 3
 	c.MaxNumberWorkers = 3
-	c.UseProxy = useProxy
 	c.UserAgent = ""
 	c.RedisURL = "localhost"
 	c.RedisPort = "6378"
 	c.TimeIntervalToPrintStats = 1
+	return c, err
+}
+
+// Init initializes the connection pool and the Redis client
+func (c *Crawler) Init() error {
+	// Generate the logging
+	if c.Verbose {
+		c.log = lumber.NewConsoleLogger(lumber.TRACE)
+	} else {
+		c.log = lumber.NewConsoleLogger(lumber.WARN)
+	}
 
 	// Generate the connection pool
 	var tr *http.Transport
@@ -75,10 +80,12 @@ func New(baseurl string, trace bool, useProxy bool) (*Crawler, error) {
 		tbProxyURL, err := url.Parse("socks5://127.0.0.1:9050")
 		if err != nil {
 			c.log.Fatal("Failed to parse proxy URL: %v\n", err)
+			return err
 		}
 		tbDialer, err := proxy.FromURL(tbProxyURL, proxy.Direct)
 		if err != nil {
 			c.log.Fatal("Failed to obtain proxy dialer: %v\n", err)
+			return err
 		}
 		tr = &http.Transport{
 			MaxIdleConns:       c.MaxNumberConnections,
@@ -116,9 +123,8 @@ func New(baseurl string, trace bool, useProxy bool) (*Crawler, error) {
 		Password: "", // no password set
 		DB:       3,  // use default DB
 	})
-	_, err = c.todo.Ping().Result()
-
-	return c, err
+	_, err := c.todo.Ping().Result()
+	return err
 }
 
 func (c *Crawler) getIP() (ip string, err error) {
@@ -196,7 +202,6 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 
 	// collect links
 	links := collectlinks.All(resp.Body)
-	c.log.Info("Got %d links from %s\n", len(links), url)
 
 	// find good links
 	linkCandidates := make([]string, len(links))
@@ -214,7 +219,7 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 
 		// skip links that have a different Base URL
 		if !strings.Contains(link, c.BaseURL) {
-			c.log.Trace("Skipping %s because it has a different base URL", link)
+			// c.log.Trace("Skipping %s because it has a different base URL", link)
 			continue
 		}
 
@@ -230,7 +235,7 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 		for _, keyword := range c.KeywordsToExclude {
 			if strings.Contains(normalizedLink, keyword) {
 				foundExcludedKeyword = true
-				c.log.Trace("Skipping %s because contains %s", link, keyword)
+				// c.log.Trace("Skipping %s because contains %s", link, keyword)
 				break
 			}
 		}
@@ -326,7 +331,10 @@ func (c *Crawler) Crawl() (err error) {
 		for _, url := range urls {
 			c.addLinkToDo(url, false)
 		}
-		c.log.Trace("Got %d urls", len(urls))
+		if len(urls) > 0 {
+			c.log.Trace("Got %d urls from %s", len(urls), randomURL)
+		}
+		c.numberOfURLSParsed++
 	}
 	c.isRunning = false
 	return
