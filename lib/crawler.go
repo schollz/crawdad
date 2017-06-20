@@ -265,6 +265,79 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	return linkCandidates, err
 }
 
+func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
+	for j := range jobs {
+		c.log.Trace("worker %d working on job %d", id, j)
+		// check if there are any links to do
+		dbsize, err := c.todo.DbSize().Result()
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+
+		// break if there are no links to do
+		if dbsize == 0 {
+			c.log.Trace("Exiting, no links")
+			results <- false
+			continue
+		}
+
+		// pop a URL
+		randomURL, err := c.todo.RandomKey().Result()
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+
+		// place in 'doing'
+		_, err = c.todo.Del(randomURL).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+		_, err = c.doing.Set(randomURL, "", 0).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+
+		urls, err := c.scrapeLinks(randomURL)
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+
+		// move url to 'done'
+		_, err = c.doing.Del(randomURL).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+		_, err = c.done.Set(randomURL, "", 0).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+			results <- false
+			continue
+		}
+
+		// add new urls to 'todo'
+		for _, url := range urls {
+			c.addLinkToDo(url, false)
+		}
+		if len(urls) > 0 {
+			c.log.Trace("Got %d urls from %s", len(urls), randomURL)
+		}
+		c.numberOfURLSParsed++
+		results <- true
+	}
+}
+
 // Crawl initiates the pool of connections and begins
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
@@ -277,64 +350,34 @@ func (c *Crawler) Crawl() (err error) {
 	go c.contantlyPrintStats()
 	for {
 		it++
-		// check if there are any links to do
-		dbsize, err := c.todo.DbSize().Result()
-		if err != nil {
-			c.log.Error(err.Error())
-			break
+		jobs := make(chan int, c.MaxNumberWorkers)
+		results := make(chan bool, c.MaxNumberWorkers)
+
+		// This starts up 3 workers, initially blocked
+		// because there are no jobs yet.
+		for w := 1; w <= c.MaxNumberWorkers; w++ {
+			go c.crawl(w, jobs, results)
 		}
 
-		// break if there are no links to do
-		if dbsize == 0 {
-			c.log.Trace("No more links!")
-			break
+		// Here we send 5 `jobs` and then `close` that
+		// channel to indicate that's all the work we have.
+		for j := 1; j <= c.MaxNumberWorkers; j++ {
+			jobs <- j
+		}
+		close(jobs)
+
+		// Finally we collect all the results of the work.
+		oneSuccess := false
+		for a := 1; a <= c.MaxNumberWorkers; a++ {
+			success := <-results
+			if success {
+				oneSuccess = true
+			}
 		}
 
-		// pop a URL
-		randomURL, err := c.todo.RandomKey().Result()
-		if err != nil {
-			c.log.Error(err.Error())
+		if !oneSuccess {
 			break
 		}
-
-		// place in 'doing'
-		_, err = c.todo.Del(randomURL).Result()
-		if err != nil {
-			c.log.Error(err.Error())
-			break
-		}
-		_, err = c.doing.Set(randomURL, "", 0).Result()
-		if err != nil {
-			c.log.Error(err.Error())
-			break
-		}
-
-		urls, err := c.scrapeLinks(randomURL)
-		if err != nil {
-			c.log.Error(err.Error())
-			break
-		}
-
-		// move url to 'done'
-		_, err = c.doing.Del(randomURL).Result()
-		if err != nil {
-			c.log.Error(err.Error())
-			break
-		}
-		_, err = c.done.Set(randomURL, "", 0).Result()
-		if err != nil {
-			c.log.Error(err.Error())
-			break
-		}
-
-		// add new urls to 'todo'
-		for _, url := range urls {
-			c.addLinkToDo(url, false)
-		}
-		if len(urls) > 0 {
-			c.log.Trace("Got %d urls from %s", len(urls), randomURL)
-		}
-		c.numberOfURLSParsed++
 	}
 	c.isRunning = false
 	return
@@ -382,8 +425,8 @@ func (c *Crawler) contantlyPrintStats() {
 }
 
 func (c *Crawler) printStats() {
-	URLSPerSecond := round(float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
-	log.Printf("Node: %s parsed (%d/s). Total: %s todo, %s done, %s trashed\n",
+	URLSPerSecond := round(60.0*float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
+	log.Printf("Node: %s parsed (%d/min). Total: %s todo, %s done, %s trashed\n",
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
 		humanize.Comma(int64(c.numToDo)),

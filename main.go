@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/schollz/goredis-crawler/lib"
+	crawler "github.com/schollz/redis-crawler/lib"
 	"github.com/urfave/cli"
 )
 
@@ -49,6 +49,11 @@ func main() {
 			Value: 1,
 			Usage: "Print stats every `X` seconds",
 		},
+		cli.IntFlag{
+			Name:  "connections, c",
+			Value: 10,
+			Usage: "Number of connections to use",
+		},
 		cli.BoolFlag{
 			Name:  "verbose",
 			Usage: "turn on logging",
@@ -67,8 +72,8 @@ func main() {
 		if err != nil {
 			return err
 		}
-		craw.MaxNumberConnections = c.GlobalInt("conn")
-		craw.MaxNumberWorkers = c.GlobalInt("workers")
+		craw.MaxNumberConnections = c.GlobalInt("connections")
+		craw.MaxNumberWorkers = c.GlobalInt("connections")
 		craw.Verbose = c.GlobalBool("verbose")
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
