@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	crawler "github.com/schollz/redis-crawler/lib"
+	crawler "github.com/schollz/goredis-crawler/lib"
 	"github.com/urfave/cli"
 )
 
