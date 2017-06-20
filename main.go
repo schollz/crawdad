@@ -51,7 +51,12 @@ func main() {
 		},
 		cli.IntFlag{
 			Name:  "connections, c",
-			Value: 10,
+			Value: 25,
+			Usage: "Number of connections to use",
+		},
+		cli.IntFlag{
+			Name:  "workers, w",
+			Value: 8,
 			Usage: "Number of connections to use",
 		},
 		cli.BoolFlag{
@@ -73,7 +78,7 @@ func main() {
 			return err
 		}
 		craw.MaxNumberConnections = c.GlobalInt("connections")
-		craw.MaxNumberWorkers = c.GlobalInt("connections")
+		craw.MaxNumberWorkers = c.GlobalInt("workers")
 		craw.Verbose = c.GlobalBool("verbose")
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")

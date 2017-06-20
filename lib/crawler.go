@@ -56,8 +56,8 @@ func New(baseurl string) (*Crawler, error) {
 	err = nil
 	c := new(Crawler)
 	c.BaseURL = baseurl
-	c.MaxNumberConnections = 3
-	c.MaxNumberWorkers = 3
+	c.MaxNumberConnections = 20
+	c.MaxNumberWorkers = 8
 	c.UserAgent = ""
 	c.RedisURL = "localhost"
 	c.RedisPort = "6378"
@@ -267,7 +267,6 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 
 func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 	for j := range jobs {
-		c.log.Trace("worker %d working on job %d", id, j)
 		// check if there are any links to do
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
@@ -331,7 +330,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			c.addLinkToDo(url, false)
 		}
 		if len(urls) > 0 {
-			c.log.Trace("Got %d urls from %s", len(urls), randomURL)
+			c.log.Trace("W/J:%d/%d %d urls from %s", id, j, len(urls), randomURL)
 		}
 		c.numberOfURLSParsed++
 		results <- true
@@ -350,8 +349,8 @@ func (c *Crawler) Crawl() (err error) {
 	go c.contantlyPrintStats()
 	for {
 		it++
-		jobs := make(chan int, c.MaxNumberWorkers)
-		results := make(chan bool, c.MaxNumberWorkers)
+		jobs := make(chan int, c.MaxNumberConnections)
+		results := make(chan bool, c.MaxNumberConnections)
 
 		// This starts up 3 workers, initially blocked
 		// because there are no jobs yet.
@@ -361,14 +360,14 @@ func (c *Crawler) Crawl() (err error) {
 
 		// Here we send 5 `jobs` and then `close` that
 		// channel to indicate that's all the work we have.
-		for j := 1; j <= c.MaxNumberWorkers; j++ {
+		for j := 1; j <= c.MaxNumberConnections; j++ {
 			jobs <- j
 		}
 		close(jobs)
 
 		// Finally we collect all the results of the work.
 		oneSuccess := false
-		for a := 1; a <= c.MaxNumberWorkers; a++ {
+		for a := 1; a <= c.MaxNumberConnections; a++ {
 			success := <-results
 			if success {
 				oneSuccess = true
@@ -425,7 +424,7 @@ func (c *Crawler) contantlyPrintStats() {
 }
 
 func (c *Crawler) printStats() {
-	URLSPerSecond := round(60.0*float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
+	URLSPerSecond := round(60.0 * float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
 	log.Printf("Node: %s parsed (%d/min). Total: %s todo, %s done, %s trashed\n",
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
