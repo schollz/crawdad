@@ -1,0 +1,8 @@
+build:
+  binary: goredis-crawler
+  goos:
+    - windows
+    - darwin
+    - linux
+  goarch:
+    - amd64
