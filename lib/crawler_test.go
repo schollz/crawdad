@@ -13,7 +13,7 @@ func TestGeneral(t *testing.T) {
 	}
 
 	crawl.RedisURL = "localhost"
-	crawl.RedisPort = "6378"
+	crawl.RedisPort = "6379"
 	crawl.Verbose = true
 
 	err = crawl.Init()

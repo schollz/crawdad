@@ -60,7 +60,7 @@ func New(baseurl string) (*Crawler, error) {
 	c.MaxNumberWorkers = 8
 	c.UserAgent = ""
 	c.RedisURL = "localhost"
-	c.RedisPort = "6378"
+	c.RedisPort = "6379"
 	c.TimeIntervalToPrintStats = 1
 	return c, err
 }
@@ -124,6 +124,9 @@ func (c *Crawler) Init() error {
 		DB:       3,  // use default DB
 	})
 	_, err := c.todo.Ping().Result()
+    if err != nil {
+        fmt.Printf("Redis not available at %s:%s, did you run it?\nThe easiest way is\ndocker run -p 6379:6379 redis\n\n",c.RedisURL,c.RedisPort)
+    }
 	return err
 }
 

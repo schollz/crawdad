@@ -1,12 +1,6 @@
+# goredis-crawler
 
-<p align="center">
-<h2>goredis-crawler</h2>
-<br>
-<a href="http://gocover.io/github.com/schollz/goredis-crawler/lib"><img src="https://img.shields.io/badge/coverage-76%25-yellow.svg?style=flat-square" alt="Code Coverage"></a>
-<a href="https://godoc.org/github.com/schollz/goredis-crawler/lib"><img src="https://img.shields.io/badge/api-reference-blue.svg?style=flat-square" alt="GoDoc"></a>
-</p>
-
-<p align="center">Cross-platform persistent and distributed web crawler</a></p>
+Go+Redis for cross-platform persistent and distributed web crawler
 
 *goredis-crawler* is persistent because the queue is stored in a remote database that is automatically re-initialized if interrupted. *goredis-crawler* is distributed because multiple instances of *goredis-crawler* will work on the remotely stored queue, so you can start as many crawlers as you want on separate machines to speed along the process. *goredis-crawler* is also fast because it is threaded and uses connection pools.
 

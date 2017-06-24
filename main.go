@@ -52,12 +52,12 @@ func main() {
 		cli.IntFlag{
 			Name:  "connections, c",
 			Value: 25,
-			Usage: "Number of connections to use",
+			Usage: "number of connections to use",
 		},
 		cli.IntFlag{
 			Name:  "workers, w",
 			Value: 8,
-			Usage: "Number of connections to use",
+			Usage: "number of connections to use",
 		},
 		cli.BoolFlag{
 			Name:  "verbose",
@@ -95,6 +95,9 @@ func main() {
 		if err != nil {
 			return err
 		}
+        if url == "" {
+            fmt.Println("You should specify a URL to crawl, --url URL")
+        }
 		err = craw.Crawl()
 		return err
 	}
