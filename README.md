@@ -12,8 +12,9 @@ Getting Started
 ## Install
 
 If you have Go installed, just do
+
 ```
-go get github.com/schollz/goredis-crawler/...
+$ go get github.com/schollz/goredis-crawler/...
 ```
 
 Otherwise, use the releases and [download goredis-crawler](https://github.com/schollz/goredis-crawler/releases/latest).
@@ -26,7 +27,7 @@ First run the database server which will create a LAN hub:
 
 ```sh
 $ docker run -d -v /place/to/save/data:/data -p 6379:6379 redis 
-$ ./goredis-crawler --url "http://rpiai.com"
+$ goredis-crawler --url "http://rpiai.com"
 ```
 You can run this last command on as many different machines as you want, which will help to crawl the respective website and add collected links to a universal queue in the server.
 
