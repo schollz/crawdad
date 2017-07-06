@@ -222,9 +222,10 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		// trash it
+		// TODO: trash it
 		return []string{}, err
 	} else if resp.StatusCode != 200 {
+		// TODO: increment counter for stopping
 		return []string{}, errors.New("Server does not want this")
 	}
 
