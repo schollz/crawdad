@@ -124,10 +124,35 @@ func (c *Crawler) Init() error {
 		DB:       3,  // use default DB
 	})
 	_, err := c.todo.Ping().Result()
-    if err != nil {
-        fmt.Printf("Redis not available at %s:%s, did you run it?\nThe easiest way is\ndocker run -p 6379:6379 redis\n\n",c.RedisURL,c.RedisPort)
-    }
+	if err != nil {
+		fmt.Printf("Redis not available at %s:%s, did you run it?\nThe easiest way is\ndocker run -p 6379:6379 redis\n\n", c.RedisURL, c.RedisPort)
+	}
 	return err
+}
+
+func (c *Crawler) Dump() (allKeys []string, err error) {
+	var keys []string
+	keys, err = c.todo.Keys("*").Result()
+	if err != nil {
+		return nil, err
+	}
+	allKeys = append(allKeys, keys...)
+	keys, err = c.doing.Keys("*").Result()
+	if err != nil {
+		return nil, err
+	}
+	allKeys = append(allKeys, keys...)
+	keys, err = c.done.Keys("*").Result()
+	if err != nil {
+		return nil, err
+	}
+	allKeys = append(allKeys, keys...)
+	keys, err = c.trash.Keys("*").Result()
+	if err != nil {
+		return nil, err
+	}
+	allKeys = append(allKeys, keys...)
+	return
 }
 
 func (c *Crawler) getIP() (ip string, err error) {

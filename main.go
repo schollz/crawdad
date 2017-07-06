@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -67,12 +68,16 @@ func main() {
 			Name:  "proxy",
 			Usage: "use tor proxy",
 		},
+		cli.StringFlag{
+			Name:  "dump",
+			Value: "",
+			Usage: "dump the records to `file`",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
 		// Setup crawler to crawl
 		url := c.GlobalString("url")
-		fmt.Printf("Setting up crawler for %s\n\n", url)
 		craw, err := crawler.New(url)
 		if err != nil {
 			return err
@@ -95,10 +100,22 @@ func main() {
 		if err != nil {
 			return err
 		}
-        if url == "" {
-            fmt.Println("You should specify a URL to crawl, --url URL")
-        }
-		err = craw.Crawl()
+		if c.GlobalString("dump") != "" {
+			var allKeys []string
+			allKeys, err = craw.Dump()
+			if err != nil {
+				return err
+			}
+			err = ioutil.WriteFile(c.GlobalString("dump"), []byte(strings.Join(allKeys, "\n")), 0644)
+			fmt.Printf("Wrote %d keys to '%s'\n", len(allKeys), c.GlobalString("dump"))
+		} else {
+			if url == "" {
+				fmt.Println("You should specify a URL to crawl, --url URL")
+				return nil
+			}
+			fmt.Printf("Starting crawl on %s\n\n", url)
+			err = craw.Crawl()
+		}
 		return err
 	}
 

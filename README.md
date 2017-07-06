@@ -33,6 +33,12 @@ You can run this last command on as many different machines as you want, which w
 
 The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
 
+When done you can dump all the links:
+
+```sh
+$ goredis-crawler --dump dump.txt
+```
+
 See the help (`-help`) if you'd like to see more options, such as exclusions/inclusions and modifying the worker pool and connection pools.
 
 ## License
