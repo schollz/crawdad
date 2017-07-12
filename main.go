@@ -73,6 +73,11 @@ func main() {
 			Value: "",
 			Usage: "dump the records to `file`",
 		},
+		cli.StringFlag{
+			Name:  "useragent",
+			Value: "",
+			Usage: "set the specified `useragent`",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
