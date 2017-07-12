@@ -102,7 +102,7 @@ func (c *Crawler) Init() error {
 	}
 	c.client = &http.Client{
 		Transport: tr,
-		Timeout:   time.Duration(5 * time.Second),
+		Timeout:   time.Duration(15 * time.Second),
 	}
 
 	// Setup Redis client
