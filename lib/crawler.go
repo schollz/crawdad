@@ -338,7 +338,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			continue
 		}
 
-		c.log.Trace("Queried redis in %s", time.Since(t).String())
+		c.log.Trace("Got work in %s", time.Since(t).String())
 		urls, err := c.scrapeLinks(randomURL)
 		if err != nil {
 			c.log.Error(err.Error())
@@ -346,6 +346,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			continue
 		}
 
+		t = time.Now()
 		// move url to 'done'
 		_, err = c.doing.Del(randomURL).Result()
 		if err != nil {
@@ -368,6 +369,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			c.log.Trace("W/J:%d/%d %d urls from %s", id, j, len(urls), randomURL)
 		}
 		c.numberOfURLSParsed++
+		c.log.Trace("Returned results in %s", time.Since(t).String())
 		results <- true
 	}
 }
