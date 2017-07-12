@@ -100,7 +100,10 @@ func (c *Crawler) Init() error {
 			DisableCompression: true,
 		}
 	}
-	c.client = &http.Client{Transport: tr}
+	c.client = &http.Client{
+		Transport: tr,
+		Timeout:   time.Duration(5 * time.Second),
+	}
 
 	// Setup Redis client
 	c.todo = redis.NewClient(&redis.Options{
