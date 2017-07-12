@@ -1,7 +1,6 @@
 package crawler
 
 import (
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -103,7 +102,10 @@ func (c *Crawler) Init() error {
 			DisableCompression: true,
 		}
 	}
-	c.client = &http.Client{Transport: tr}
+	c.client = &http.Client{
+		Transport: tr,
+		Timeout:   time.Duration(15 * time.Second),
+	}
 
 	// Setup Redis client
 	c.todo = redis.NewClient(&redis.Options{
@@ -235,7 +237,6 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 			fmt.Println("Too many errors, exiting!")
 			os.Exit(1)
 		}
-		return []string{}, errors.New("Server does not want this")
 	}
 
 	// collect links
@@ -305,6 +306,9 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 
 func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 	for j := range jobs {
+		// time the link getting process
+		t := time.Now()
+
 		// check if there are any links to do
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
@@ -342,6 +346,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			continue
 		}
 
+		c.log.Trace("Got work in %s", time.Since(t).String())
 		urls, err := c.scrapeLinks(randomURL)
 		if err != nil {
 			c.log.Error(err.Error())
@@ -349,6 +354,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			continue
 		}
 
+		t = time.Now()
 		// move url to 'done'
 		_, err = c.doing.Del(randomURL).Result()
 		if err != nil {
@@ -371,6 +377,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			c.log.Trace("W/J:%d/%d %d urls from %s", id, j, len(urls), randomURL)
 		}
 		c.numberOfURLSParsed++
+		c.log.Trace("Returned results in %s", time.Since(t).String())
 		results <- true
 	}
 }
