@@ -8,6 +8,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -48,6 +49,7 @@ type Crawler struct {
 	numToDo                  int64
 	numDoing                 int64
 	isRunning                bool
+	errors                   int64
 }
 
 // New creates a new crawler instance
@@ -62,6 +64,7 @@ func New(baseurl string) (*Crawler, error) {
 	c.RedisURL = "localhost"
 	c.RedisPort = "6379"
 	c.TimeIntervalToPrintStats = 1
+	c.errors = 0
 	return c, err
 }
 
@@ -222,10 +225,16 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
-		// TODO: trash it
+		c.doing.Del(url).Result()
+		c.todo.Del(url).Result()
+		c.trash.Set(url, "", 0).Result()
 		return []string{}, err
 	} else if resp.StatusCode != 200 {
-		// TODO: increment counter for stopping
+		c.errors++
+		if c.errors > 10 {
+			fmt.Println("Too many errors, exiting!")
+			os.Exit(1)
+		}
 		return []string{}, errors.New("Server does not want this")
 	}
 
@@ -454,10 +463,13 @@ func (c *Crawler) contantlyPrintStats() {
 
 func (c *Crawler) printStats() {
 	URLSPerSecond := round(60.0 * float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
-	log.Printf("Node: %s parsed (%d/min). Total: %s todo, %s done, %s trashed\n",
+	log.Printf("[%s]\t%s parsed (%d/min)\t%s todo\t%s done\t%s doing\t%s trashed\t%s errors\n",
+		c.BaseURL,
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
 		humanize.Comma(int64(c.numToDo)),
 		humanize.Comma(int64(c.numDone)),
-		humanize.Comma(int64(c.numTrash)))
+		humanize.Comma(int64(c.numDoing)),
+		humanize.Comma(int64(c.numTrash)),
+		humanize.Comma(int64(c.errors)))
 }
