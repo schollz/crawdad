@@ -222,9 +222,11 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode == 404 {
+		c.log.Trace("Got code %d", resp.StatusCode)
 		// TODO: trash it
 		return []string{}, err
 	} else if resp.StatusCode != 200 {
+		c.log.Trace("Uh oh, got code %d", resp.StatusCode)
 		// TODO: increment counter for stopping
 		return []string{}, errors.New("Server does not want this")
 	}
@@ -296,6 +298,9 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 
 func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 	for j := range jobs {
+		// time the link getting process
+		t := time.Now()
+
 		// check if there are any links to do
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
@@ -333,6 +338,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			continue
 		}
 
+		c.log.Trace("Queried redis in %s", time.Since(t).String())
 		urls, err := c.scrapeLinks(randomURL)
 		if err != nil {
 			c.log.Error(err.Error())
