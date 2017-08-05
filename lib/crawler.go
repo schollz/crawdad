@@ -135,6 +135,43 @@ func (c *Crawler) Init() error {
 	return err
 }
 
+func (c *Crawler) Redo() (err error) {
+	var keys []string
+	keys, err = c.doing.Keys("*").Result()
+	if err != nil {
+		return
+	}
+	for _, key := range keys {
+		c.log.Trace("Moving %s back to todo list", key)
+		_, err = c.doing.Del(key).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+		}
+		_, err = c.todo.Set(key, "", 0).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+		}
+	}
+
+	keys, err = c.trash.Keys("*").Result()
+	if err != nil {
+		return
+	}
+	for _, key := range keys {
+		c.log.Trace("Moving %s back to todo list", key)
+		_, err = c.trash.Del(key).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+		}
+		_, err = c.todo.Set(key, "", 0).Result()
+		if err != nil {
+			c.log.Error(err.Error())
+		}
+	}
+
+	return
+}
+
 func (c *Crawler) Dump() (allKeys []string, err error) {
 	var keys []string
 	keys, err = c.todo.Keys("*").Result()

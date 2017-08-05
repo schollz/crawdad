@@ -78,6 +78,10 @@ func main() {
 			Value: "",
 			Usage: "set the specified `useragent`",
 		},
+		cli.BoolFlag{
+			Name:  "redo",
+			Usage: "move items from 'doing' to 'todo'",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -113,6 +117,8 @@ func main() {
 			}
 			err = ioutil.WriteFile(c.GlobalString("dump"), []byte(strings.Join(allKeys, "\n")), 0644)
 			fmt.Printf("Wrote %d keys to '%s'\n", len(allKeys), c.GlobalString("dump"))
+		} else if c.GlobalBool("redo") {
+			err = craw.Redo()
 		} else {
 			if url == "" {
 				fmt.Println("You should specify a URL to crawl, --url URL")
