@@ -17,8 +17,8 @@ import (
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
 	"github.com/goware/urlx"
-	"github.com/jackdanger/collectlinks"
 	"github.com/jcelliott/lumber"
+	"github.com/schollz/collectlinks"
 )
 
 // Crawler is the crawler instance
@@ -211,6 +211,7 @@ func (c *Crawler) addLinkToDo(link string, force bool) (err error) {
 }
 
 func (c *Crawler) scrapeLinks(url string) ([]string, error) {
+	c.log.Trace("Scraping %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		c.log.Error("Problem making request for %s: %s", url, err.Error())
@@ -374,7 +375,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			c.addLinkToDo(url, false)
 		}
 		if len(urls) > 0 {
-			c.log.Trace("W/J:%d/%d %d urls from %s", id, j, len(urls), randomURL)
+			c.log.Trace("%d-%d %d urls from %s", id, j, len(urls), randomURL)
 		}
 		c.numberOfURLSParsed++
 		c.log.Trace("Returned results in %s", time.Since(t).String())
