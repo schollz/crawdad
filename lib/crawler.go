@@ -32,6 +32,7 @@ type Crawler struct {
 	MaxNumberConnections     int
 	MaxNumberWorkers         int
 	BaseURL                  string
+	SeedURL                  string
 	RedisURL                 string
 	RedisPort                string
 	KeywordsToExclude        []string
@@ -40,6 +41,7 @@ type Crawler struct {
 	UseProxy                 bool
 	UserAgent                string
 	AllowQueryParameters     bool
+	AllowHashParameters      bool
 	log                      *lumber.ConsoleLogger
 	programTime              time.Time
 	numberOfURLSParsed       int
@@ -58,6 +60,7 @@ func New(baseurl string) (*Crawler, error) {
 	err = nil
 	c := new(Crawler)
 	c.BaseURL = baseurl
+	c.SeedURL = baseurl
 	c.MaxNumberConnections = 20
 	c.MaxNumberWorkers = 8
 	c.UserAgent = ""
@@ -291,8 +294,13 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 			link = strings.Split(link, "?")[0]
 		}
 
+		// disallow hash parameters, if not flagged
+		if strings.Contains(link, "#") && !c.AllowHashParameters {
+			link = strings.Split(link, "#")[0]
+		}
+
 		// add Base URL if it doesn't have
-		if !strings.Contains(link, "http") {
+		if !strings.Contains(link, "http") && len(link) > 2 {
 			if c.BaseURL[len(c.BaseURL)-1] != '/' && link[0] != '/' {
 				link = "/" + link
 			}
@@ -429,7 +437,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
 	// add beginning link
-	c.addLinkToDo(c.BaseURL, true)
+	c.addLinkToDo(c.SeedURL, true)
 
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0

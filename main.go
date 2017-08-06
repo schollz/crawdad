@@ -23,7 +23,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "url, u",
 			Value: "",
-			Usage: "URL to crawl",
+			Usage: "base URL to crawl",
+		},
+		cli.StringFlag{
+			Name:  "seed",
+			Value: "",
+			Usage: "URL to seed with",
 		},
 		cli.StringFlag{
 			Name:  "server, s",
@@ -86,6 +91,10 @@ func main() {
 			Name:  "query",
 			Usage: "allow query parameters in URL",
 		},
+		cli.BoolFlag{
+			Name:  "hash",
+			Usage: "allow hashes in URL",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -101,9 +110,13 @@ func main() {
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
 		craw.AllowQueryParameters = c.GlobalBool("query")
+		craw.AllowHashParameters = c.GlobalBool("hash")
 		craw.UseProxy = c.GlobalBool("proxy")
 		craw.RedisPort = c.GlobalString("port")
 		craw.RedisURL = c.GlobalString("server")
+		if len(c.GlobalString("seed")) > 0 {
+			craw.SeedURL = c.GlobalString("seed")
+		}
 		if len(c.GlobalString("include")) > 0 {
 			craw.KeywordsToInclude = strings.Split(strings.ToLower(c.GlobalString("include")), ",")
 		}
