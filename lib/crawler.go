@@ -39,6 +39,7 @@ type Crawler struct {
 	Verbose                  bool
 	UseProxy                 bool
 	UserAgent                string
+	AllowQueryParameters     bool
 	log                      *lumber.ConsoleLogger
 	programTime              time.Time
 	numberOfURLSParsed       int
@@ -284,13 +285,17 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	linkCandidates := make([]string, len(links))
 	linkCandidatesI := 0
 	for _, link := range links {
-		// disallow query parameters
-		if strings.Contains(link, "?") {
+		c.log.Trace(link)
+		// disallow query parameters, if not flagged
+		if strings.Contains(link, "?") && !c.AllowQueryParameters {
 			link = strings.Split(link, "?")[0]
 		}
 
 		// add Base URL if it doesn't have
 		if !strings.Contains(link, "http") {
+			if c.BaseURL[len(c.BaseURL)-1] != '/' && link[0] != '/' {
+				link = "/" + link
+			}
 			link = c.BaseURL + link
 		}
 

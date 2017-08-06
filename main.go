@@ -82,6 +82,10 @@ func main() {
 			Name:  "redo",
 			Usage: "move items from 'doing' to 'todo'",
 		},
+		cli.BoolFlag{
+			Name:  "query",
+			Usage: "allow query parameters in URL",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -96,6 +100,7 @@ func main() {
 		craw.Verbose = c.GlobalBool("verbose")
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
+		craw.AllowQueryParameters = c.GlobalBool("query")
 		craw.UseProxy = c.GlobalBool("proxy")
 		craw.RedisPort = c.GlobalString("port")
 		craw.RedisURL = c.GlobalString("server")
