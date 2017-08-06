@@ -42,6 +42,7 @@ type Crawler struct {
 	UserAgent                string
 	AllowQueryParameters     bool
 	AllowHashParameters      bool
+	MaximumNumberOfErrors    int
 	log                      *lumber.ConsoleLogger
 	programTime              time.Time
 	numberOfURLSParsed       int
@@ -68,6 +69,7 @@ func New(baseurl string) (*Crawler, error) {
 	c.RedisPort = "6379"
 	c.TimeIntervalToPrintStats = 1
 	c.errors = 0
+	c.MaximumNumberOfErrors = 10
 	return c, err
 }
 

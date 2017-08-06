@@ -95,6 +95,11 @@ func main() {
 			Name:  "hash",
 			Usage: "allow hashes in URL",
 		},
+		cli.IntFlag{
+			Name:  "errors",
+			Value: 10,
+			Usage: "maximum number of errors before exiting",
+		},
 	}
 
 	app.Action = func(c *cli.Context) error {
@@ -114,6 +119,7 @@ func main() {
 		craw.UseProxy = c.GlobalBool("proxy")
 		craw.RedisPort = c.GlobalString("port")
 		craw.RedisURL = c.GlobalString("server")
+		craw.MaximumNumberOfErrors = c.GlobalInt("errors")
 		if len(c.GlobalString("seed")) > 0 {
 			craw.SeedURL = c.GlobalString("seed")
 		}
