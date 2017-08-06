@@ -277,7 +277,7 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 		return []string{}, err
 	} else if resp.StatusCode != 200 {
 		c.errors++
-		if c.errors > c.MaximumNumberOfErrors {
+		if c.errors > int64(c.MaximumNumberOfErrors) {
 			fmt.Println("Too many errors, exiting!")
 			os.Exit(1)
 		}
