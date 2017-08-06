@@ -277,11 +277,13 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 		return []string{}, err
 	} else if resp.StatusCode != 200 {
 		c.errors++
-		if c.errors > 10 {
+		if c.errors > c.MaximumNumberOfErrors {
 			fmt.Println("Too many errors, exiting!")
 			os.Exit(1)
 		}
 	}
+	// reset errors as long as the code is good
+	c.errors = 0
 
 	// collect links
 	links := collectlinks.All(resp.Body)
