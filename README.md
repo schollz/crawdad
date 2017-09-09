@@ -1,17 +1,24 @@
-# goredis-crawler
 
-Go+Redis for cross-platform persistent and distributed web crawler
+<p align="center">
+<img
+    src="https://user-images.githubusercontent.com/6550035/30241126-96b2b5f2-953a-11e7-8159-bc276ab87201.png"
+    width="260" height="80" border="0" alt="pluck">
+<br>
+<a href="https://github.com/schollz/goredis-crawler/releases/latest"><img src="https://img.shields.io/badge/version-0.1.1-brightgreen.svg?style=flat-square" alt="Version"></a>
+<img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
+</p>
+
+<p align="center">A cross-platform persistent and distributed web crawler.</p>
 
 *goredis-crawler* is persistent because the queue is stored in a remote database that is automatically re-initialized if interrupted. *goredis-crawler* is distributed because multiple instances of *goredis-crawler* will work on the remotely stored queue, so you can start as many crawlers as you want on separate machines to speed along the process. *goredis-crawler* is also fast because it is threaded and uses connection pools.
 
 Crawl responsibly.
 
-Getting Started
-===============
+# Install
 
-## Install
+First [install Docker CE](https://www.docker.com/community-edition).
 
-If you have Go installed, just do
+Then, if you have Go installed, just do
 
 ```
 $ go get github.com/schollz/goredis-crawler/...
@@ -19,19 +26,21 @@ $ go get github.com/schollz/goredis-crawler/...
 
 Otherwise, use the releases and [download goredis-crawler](https://github.com/schollz/goredis-crawler/releases/latest).
 
-## Run
-
-### Crawl a site
+# Run
 
 First run the database server which will create a LAN hub:
 
 ```sh
 $ docker run -d -v /place/to/save/data:/data -p 6379:6379 redis 
+```
+
+Then startup *goredis-crawler* with the base URL:
+
+```sh
 $ goredis-crawler --url "http://rpiai.com"
 ```
-You can run this last command on as many different machines as you want, which will help to crawl the respective website and add collected links to a universal queue in the server.
 
-The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
+You can run this last command on as many different machines as you want, which will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
 
 When done you can dump all the links:
 
@@ -39,8 +48,39 @@ When done you can dump all the links:
 $ goredis-crawler --dump dump.txt
 ```
 
-See the help (`-help`) if you'd like to see more options, such as exclusions/inclusions and modifying the worker pool and connection pools.
+There are lots of other options:
 
-## License
+```
+   --url value, -u value          base URL to crawl
+   --seed value                   URL to seed with
+   --server value, -s value       address for Redis server (default: "localhost")
+   --port value, -p value         port for Redis server (default: "6379")
+   --exclude value, -e value      comma-delimted phrases that must NOT be in URL
+   --include value, -i value      comma-delimted phrases that must be in URL
+   --stats X                      Print stats every X seconds (default: 1)
+   --connections value, -c value  number of connections to use (default: 25)
+   --workers value, -w value      number of connections to use (default: 8)
+   --verbose                      turn on logging
+   --proxy                        use tor proxy
+   --dump file                    dump the records to file
+   --useragent useragent          set the specified useragent
+   --redo                         move items from 'doing' to 'todo'
+   --query                        allow query parameters in URL
+   --hash                         allow hashes in URL
+   --errors value                 maximum number of errors before exiting (default: 10)
+   --help, -h                     show help
+   --version, -v                  print the version
+```
+
+# Dev
+
+To run tests
+
+```
+$ docker run -d -v `pwd`:/data -p 6379:6379 redis
+$ cd lib && go test -cover
+```
+
+# License
 
 MIT
