@@ -4,7 +4,7 @@
     src="https://user-images.githubusercontent.com/6550035/30241126-96b2b5f2-953a-11e7-8159-bc276ab87201.png"
     width="260" height="80" border="0" alt="pluck">
 <br>
-<a href="https://github.com/schollz/goredis-crawler/releases/latest"><img src="https://img.shields.io/badge/version-0.1.1-brightgreen.svg?style=flat-square" alt="Version"></a>
+<a href="https://github.com/schollz/goredis-crawler/releases/latest"><img src="https://img.shields.io/badge/version-1.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>
 <img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
 </p>
 
