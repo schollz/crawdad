@@ -179,24 +179,62 @@ func (c *Crawler) Redo() (err error) {
 }
 
 func (c *Crawler) Dump() (allKeys []string, err error) {
+	allKeys = make([]string, 0)
+	var keySize int64
 	var keys []string
-	keys, err = c.todo.Keys("*").Result()
-	if err != nil {
+
+	keySize, _ = c.todo.DbSize().Result()
+	keys = make([]string, keySize)
+	i := 0
+	iter := c.todo.Scan(0, "", 0).Iterator()
+	for iter.Next() {
+		keys[i] = iter.Val()
+		i++
+	}
+	if err := iter.Err(); err != nil {
+		c.log.Error("Problem getting todo")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys...)
-	keys, err = c.doing.Keys("*").Result()
-	if err != nil {
+
+	keySize, _ = c.doing.DbSize().Result()
+	keys = make([]string, keySize)
+	i = 0
+	iter = c.doing.Scan(0, "", 0).Iterator()
+	for iter.Next() {
+		keys[i] = iter.Val()
+		i++
+	}
+	if err := iter.Err(); err != nil {
+		c.log.Error("Problem getting doing")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys...)
-	keys, err = c.done.Keys("*").Result()
-	if err != nil {
+
+	keySize, _ = c.done.DbSize().Result()
+	keys = make([]string, keySize)
+	i = 0
+	iter = c.done.Scan(0, "", 0).Iterator()
+	for iter.Next() {
+		keys[i] = iter.Val()
+		i++
+	}
+	if err := iter.Err(); err != nil {
+		c.log.Error("Problem getting done")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys...)
-	keys, err = c.trash.Keys("*").Result()
-	if err != nil {
+
+	keySize, _ = c.trash.DbSize().Result()
+	keys = make([]string, keySize)
+	i = 0
+	iter = c.trash.Scan(0, "", 0).Iterator()
+	for iter.Next() {
+		keys[i] = iter.Val()
+		i++
+	}
+	if err := iter.Err(); err != nil {
+		c.log.Error("Problem getting trash")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys...)
