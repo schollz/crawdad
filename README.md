@@ -16,7 +16,7 @@ Crawl responsibly.
 
 # Install
 
-First [install Docker CE](https://www.docker.com/community-edition).
+First [get Docker CE](https://www.docker.com/community-edition). This will make installing Redis a snap.
 
 Then, if you have Go installed, just do
 
@@ -28,25 +28,29 @@ Otherwise, use the releases and [download goredis-crawler](https://github.com/sc
 
 # Run
 
-First run the database server which will create a LAN hub:
+First run Redis:
 
 ```sh
-$ docker run -d -v /place/to/save/data:/data -p 6379:6379 redis 
+$ docker run -d -v /place/to/save/data:/data -p 6378:6379 redis 
 ```
 
-Then startup *goredis-crawler* with the base URL:
+Feel free to change the port on your computer (`6378`) to whatever you want. Then startup *goredis-crawler* with the base URL and the Redis port:
 
 ```sh
-$ goredis-crawler --url "http://rpiai.com"
+$ goredis-crawler --port 6378 --url "http://rpiai.com"
 ```
 
-You can run this last command on as many different machines as you want, which will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
+You can run this last command on as many different machines as you want, just make sure to specify the Redis server address with `--server`. Each machine running *goredis-crawler* will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
 
 When done you can dump all the links:
 
 ```sh
-$ goredis-crawler --dump dump.txt
+$ goredis-crawler --port 6378 --dump dump.txt
 ```
+
+which will connect to Redis and dump all the links to-do, doing, done, and trashed.
+
+# Advanced usage
 
 There are lots of other options:
 
