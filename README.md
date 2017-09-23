@@ -40,7 +40,13 @@ Feel free to change the port on your computer (`6378`) to whatever you want. The
 $ goredis-crawler --port 6378 --url "http://rpiai.com"
 ```
 
-You can run this last command on as many different machines as you want, just make sure to specify the Redis server address with `--server`. Each machine running *goredis-crawler* will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
+To run on different machines, just specify the Redis server address with `--server`. Make sure to forward the port on the Redis machine. Then on a different machine, just run:
+
+```sh
+$ goredis-crawler --server X.X.X.X --port 6378 --url "http://rpiai.com"
+```
+
+Each machine running *goredis-crawler* will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
 
 When done you can dump all the links:
 
