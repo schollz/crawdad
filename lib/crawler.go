@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -322,6 +323,12 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	}
 	// reset errors as long as the code is good
 	c.errors = 0
+
+	// copy resp.Body
+	var bodyBytes []byte
+	bodyBytes, _ = ioutil.ReadAll(resp.Body)
+	resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
+	fmt.Println(string(bodyBytes[:10]))
 
 	// collect links
 	links := collectlinks.All(resp.Body)
