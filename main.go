@@ -52,9 +52,9 @@ func main() {
 			Usage: "comma-delimted phrases that must be in URL",
 		},
 		cli.StringFlag{
-			Name: "pluck",
-			Value:"",
-			Usage:"config file for a plucker (see github.com/schollz/pluck)"
+			Name:  "pluck",
+			Value: "",
+			Usage: "config file for a plucker (see github.com/schollz/pluck)",
 		},
 		cli.IntFlag{
 			Name:  "stats",
@@ -132,6 +132,12 @@ func main() {
 		craw.RedisURL = c.GlobalString("server")
 		craw.MaximumNumberOfErrors = c.GlobalInt("errors")
 		craw.PluckConfig = c.GlobalString("pluck")
+		if craw.PluckConfig != "" {
+			_, err := os.Stat(craw.PluckConfig)
+			if err != nil {
+				return err
+			}
+		}
 		if len(c.GlobalString("seed")) > 0 {
 			craw.SeedURL = c.GlobalString("seed")
 		}
