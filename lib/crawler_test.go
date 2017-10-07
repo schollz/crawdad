@@ -60,7 +60,7 @@ func TestProxy(t *testing.T) {
 
 func TestPlucking(t *testing.T) {
 
-	crawl, err := New("http://localhost:8081")
+	crawl, err := New("https://rpiai.com")
 	if err != nil {
 		t.Error(err)
 	}
@@ -81,5 +81,5 @@ func TestPlucking(t *testing.T) {
 		t.Error(err)
 	}
 
-	// fmt.Println(crawl.DumpMap())
+	fmt.Println(crawl.DumpMap())
 }
