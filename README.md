@@ -4,15 +4,25 @@
     src="https://user-images.githubusercontent.com/6550035/30241126-96b2b5f2-953a-11e7-8159-bc276ab87201.png"
     width="260" height="80" border="0" alt="pluck">
 <br>
-<a href="https://github.com/schollz/goredis-crawler/releases/latest"><img src="https://img.shields.io/badge/version-1.1.0-brightgreen.svg?style=flat-square" alt="Version"></a>
+<a href="https://github.com/schollz/crab/releases/latest"><img src="https://img.shields.io/badge/version-2.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>
 <img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
 </p>
 
-<p align="center">A cross-platform persistent and distributed web crawler.</p>
+<p align="center">*crab* is cross-platform crawler that can also pinch things on the web.</p>
 
-*goredis-crawler* is persistent because the queue is stored in a remote database that is automatically re-initialized if interrupted. *goredis-crawler* is distributed because multiple instances of *goredis-crawler* will work on the remotely stored queue, so you can start as many crawlers as you want on separate machines to speed along the process. *goredis-crawler* is also fast because it is threaded and uses connection pools.
+*crab* is a web-crawler and scraper that is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to synchronize distributed *crab*s and allows scraping to be specified in a flexible way using [*pluck*](https://githbu.com/schollz/pluck). Use *crab* to crawl an entire domain and scrape selected content.
 
 Crawl responsibly.
+
+# Features
+
+- Written in Go
+- [Cross-platform releases](https://github.com/schollz/crab/releases/latest)
+- Persistent (interruptions can be re-initialized)
+- Distributed (multiple crabs can be run on diferent machiness)
+- Scraping using [*pluck*](https://github.com/schollz/pluck)
+- Uses connection pools for lower latency
+- Uses threads for maximum parallelism
 
 # Install
 
@@ -21,10 +31,10 @@ First [get Docker CE](https://www.docker.com/community-edition). This will make 
 Then, if you have Go installed, just do
 
 ```
-$ go get github.com/schollz/goredis-crawler/...
+$ go get github.com/schollz/crab/...
 ```
 
-Otherwise, use the releases and [download goredis-crawler](https://github.com/schollz/goredis-crawler/releases/latest).
+Otherwise, use the releases and [download crab](https://github.com/schollz/crab/releases/latest).
 
 # Run
 
@@ -34,24 +44,24 @@ First run Redis:
 $ docker run -d -v /place/to/save/data:/data -p 6378:6379 redis 
 ```
 
-Feel free to change the port on your computer (`6378`) to whatever you want. Then startup *goredis-crawler* with the base URL and the Redis port:
+Feel free to change the port on your computer (`6378`) to whatever you want. Then startup *crab* with the base URL and the Redis port:
 
 ```sh
-$ goredis-crawler --port 6378 --url "http://rpiai.com"
+$ crab --port 6378 --url "http://rpiai.com"
 ```
 
 To run on different machines, just specify the Redis server address with `--server`. Make sure to forward the port on the Redis machine. Then on a different machine, just run:
 
 ```sh
-$ goredis-crawler --server X.X.X.X --port 6378 --url "http://rpiai.com"
+$ crab --server X.X.X.X --port 6378 --url "http://rpiai.com"
 ```
 
-Each machine running *goredis-crawler* will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
+Each machine running *crab* will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
 
 When done you can dump all the links:
 
 ```sh
-$ goredis-crawler --port 6378 --dump dump.txt
+$ crab --port 6378 --dump dump.txt
 ```
 
 which will connect to Redis and dump all the links to-do, doing, done, and trashed.

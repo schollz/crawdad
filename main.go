@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	crawler "github.com/schollz/goredis-crawler/lib"
+	crawler "github.com/schollz/crab/lib"
 	"github.com/urfave/cli"
 )
 
@@ -16,7 +16,7 @@ var version string
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "goredis-crawler"
+	app.Name = "crab"
 	app.Usage = "crawl a site for links"
 	app.Version = version
 	app.Compiled = time.Now()
