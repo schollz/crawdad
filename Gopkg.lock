@@ -2,6 +2,12 @@
 
 
 [[projects]]
+  name = "github.com/BurntSushi/toml"
+  packages = ["."]
+  revision = "b26d9c308763d68093482582cea63d69be07a0f0"
+  version = "v0.3.0"
+
+[[projects]]
   name = "github.com/PuerkitoBio/purell"
   packages = ["."]
   revision = "0bcb03f4b4d0a9428594752bd2a3b9aa0a9d4bd4"
@@ -38,10 +44,28 @@
   revision = "dd349441af25132d146d7095c6693a15431fc9b1"
 
 [[projects]]
+  name = "github.com/pkg/errors"
+  packages = ["."]
+  revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
+  version = "v0.8.0"
+
+[[projects]]
   branch = "master"
   name = "github.com/schollz/collectlinks"
   packages = ["."]
   revision = "38870c824643945a129396eea5ff05a78ad9fd66"
+
+[[projects]]
+  name = "github.com/schollz/pluck"
+  packages = ["pluck","pluck/striphtml"]
+  revision = "87142c79a89031af1449fa804595f1561c9a146d"
+  version = "v1.0.0"
+
+[[projects]]
+  name = "github.com/sirupsen/logrus"
+  packages = ["."]
+  revision = "f006c2ac4710855cf0f916dd6b77acf6b048dc6e"
+  version = "v1.0.3"
 
 [[projects]]
   name = "github.com/urfave/cli"
@@ -51,9 +75,21 @@
 
 [[projects]]
   branch = "master"
+  name = "golang.org/x/crypto"
+  packages = ["ssh/terminal"]
+  revision = "9419663f5a44be8b34ca85f08abc5fe1be11f8a3"
+
+[[projects]]
+  branch = "master"
   name = "golang.org/x/net"
   packages = ["html","html/atom","idna","proxy"]
   revision = "0a9397675ba34b2845f758fe3cd68828369c6517"
+
+[[projects]]
+  branch = "master"
+  name = "golang.org/x/sys"
+  packages = ["unix","windows"]
+  revision = "ebfc5b4631820b793c9010c87fd8fef0f39eb082"
 
 [[projects]]
   branch = "master"
@@ -64,6 +100,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "46ed3a3c625dd9d86cd300caf1cd84c87334e62715b5877371a10121e26bb430"
+  inputs-digest = "14ebbb13ef76a45244cb3f308c46f2b4e07f94f37ffa4bf9a8d9bfe42b752b2b"
   solver-name = "gps-cdcl"
   solver-version = 1
