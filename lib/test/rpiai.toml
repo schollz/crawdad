@@ -1,0 +1,4 @@
+[[pluck]]
+activators = ['h1','"post-full-title','>']
+deactivator = '</'
+limit = 1
