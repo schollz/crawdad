@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	crawler "github.com/schollz/goredis-crawler/lib"
+	"github.com/schollz/crawdad/crawdad"
 	"github.com/urfave/cli"
 )
 
@@ -16,7 +16,7 @@ var version string
 
 func main() {
 	app := cli.NewApp()
-	app.Name = "goredis-crawler"
+	app.Name = "crawdad"
 	app.Usage = "crawl a site for links"
 	app.Version = version
 	app.Compiled = time.Now()
@@ -116,7 +116,7 @@ func main() {
 	app.Action = func(c *cli.Context) error {
 		// Setup crawler to crawl
 		url := c.GlobalString("url")
-		craw, err := crawler.New(url)
+		craw, err := crawdad.New(url)
 		if err != nil {
 			return err
 		}

@@ -1,5 +1,5 @@
 build:
-  binary: goredis-crawler
+  binary: crawdad
   goos:
     - windows
     - darwin
