@@ -8,6 +8,8 @@
 <img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
 </p>
 
+
+
 <p align="center">*crawdad* is cross-platform web-crawler that can also pinch data.</p>
 
 *crawdad* is a internet crawler and scraper that is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to synchronize distributed instances. Scraping is specified in a powerful and flexible manner using [*pluck*](https://githbu.com/schollz/pluck). Use *crawdad* to crawl an entire domain and scrape selected content.
@@ -70,6 +72,7 @@ which will connect to Redis and dump all the links to-do, doing, done, and trash
 
 ## Scraping
 
+
 To scrape, you will need to make a [*pluck* TOML configuration file](https://github.com/schollz/pluck). For instance, I would like to scrape from my site, rpiai.com, the meta description and the title. My configuration, `pluck.toml`, looks like:
 
 ```toml
@@ -85,6 +88,7 @@ activators = ["<title>"]
 deactivator = "</title>"
 limit = 1
 ```
+
 
 Now I can crawl the site the same way as before, but load in this *pluck* configuration with `--pluck` so it captures the content:
 
