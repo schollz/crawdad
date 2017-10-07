@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -76,7 +77,12 @@ func main() {
 		cli.StringFlag{
 			Name:  "dump",
 			Value: "",
-			Usage: "dump the records to `file`",
+			Usage: "dump all the keys to `file`",
+		},
+		cli.StringFlag{
+			Name:  "done",
+			Value: "",
+			Usage: "dump the map of the done things `file`",
 		},
 		cli.StringFlag{
 			Name:  "useragent",
@@ -141,6 +147,18 @@ func main() {
 			}
 			err = ioutil.WriteFile(c.GlobalString("dump"), []byte(strings.Join(allKeys, "\n")), 0644)
 			fmt.Printf("Wrote %d keys to '%s'\n", len(allKeys), c.GlobalString("dump"))
+		} else if c.GlobalString("done") != "" {
+			m, err2 := craw.DumpMap()
+			if err2 != nil {
+				return err2
+			}
+
+			b, err2 := json.MarshalIndent(m, "", " ")
+			if err2 != nil {
+				return err2
+			}
+			err = ioutil.WriteFile(c.GlobalString("done"), b, 0644)
+			fmt.Printf("Wrote %d keys to '%s'\n", len(m), c.GlobalString("done"))
 		} else if c.GlobalBool("redo") {
 			err = craw.Redo()
 		} else {

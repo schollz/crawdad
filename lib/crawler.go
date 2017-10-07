@@ -1,6 +1,7 @@
 package crawler
 
 import (
+	"bufio"
 	"bytes"
 	"fmt"
 	"io/ioutil"
@@ -12,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/schollz/pluck/pluck"
 
 	"golang.org/x/net/proxy"
 
@@ -36,6 +39,7 @@ type Crawler struct {
 	SeedURL                  string
 	RedisURL                 string
 	RedisPort                string
+	PluckConfig              string
 	KeywordsToExclude        []string
 	KeywordsToInclude        []string
 	Verbose                  bool
@@ -179,6 +183,33 @@ func (c *Crawler) Redo() (err error) {
 	return
 }
 
+func (c *Crawler) DumpMap() (m map[string]string, err error) {
+	var keySize int64
+	var keys []string
+	keySize, _ = c.done.DbSize().Result()
+	keys = make([]string, keySize)
+	i := 0
+	iter := c.done.Scan(0, "", 0).Iterator()
+	for iter.Next() {
+		keys[i] = iter.Val()
+		i++
+	}
+	if err = iter.Err(); err != nil {
+		c.log.Error("Problem getting done")
+		return
+	}
+	m = make(map[string]string)
+	for _, key := range keys {
+		var val string
+		val, err = c.done.Get(key).Result()
+		if err != nil {
+			return
+		}
+		m[key] = val
+	}
+	return
+}
+
 func (c *Crawler) Dump() (allKeys []string, err error) {
 	allKeys = make([]string, 0)
 	var keySize int64
@@ -292,12 +323,12 @@ func (c *Crawler) addLinkToDo(link string, force bool) (err error) {
 	return
 }
 
-func (c *Crawler) scrapeLinks(url string) ([]string, error) {
+func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData string, err error) {
 	c.log.Trace("Scraping %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		c.log.Error("Problem making request for %s: %s", url, err.Error())
-		return nil, err
+		return
 	}
 	if c.UserAgent != "" {
 		c.log.Trace("Setting useragent string to '%s'", c.UserAgent)
@@ -305,7 +336,7 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return nil, err
+		return
 	}
 	defer resp.Body.Close()
 
@@ -313,7 +344,7 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 		c.doing.Del(url).Result()
 		c.todo.Del(url).Result()
 		c.trash.Set(url, "", 0).Result()
-		return []string{}, err
+		return
 	} else if resp.StatusCode != 200 {
 		c.errors++
 		if c.errors > int64(c.MaximumNumberOfErrors) {
@@ -328,13 +359,26 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	var bodyBytes []byte
 	bodyBytes, _ = ioutil.ReadAll(resp.Body)
 	resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
-	fmt.Println(string(bodyBytes[:10]))
+
+	// do plucking
+	if c.PluckConfig != "" {
+		plucker, _ := pluck.New()
+		err = plucker.Load(c.PluckConfig)
+		if err != nil {
+			return
+		}
+		err = plucker.Pluck(bufio.NewReader(bytes.NewReader(bodyBytes)))
+		if err != nil {
+			return
+		}
+		pluckedData = plucker.ResultJSON()
+	}
 
 	// collect links
 	links := collectlinks.All(resp.Body)
 
 	// find good links
-	linkCandidates := make([]string, len(links))
+	linkCandidates = make([]string, len(links))
 	linkCandidatesI := 0
 	for _, link := range links {
 		c.log.Trace(link)
@@ -401,7 +445,7 @@ func (c *Crawler) scrapeLinks(url string) ([]string, error) {
 	// trim candidate list
 	linkCandidates = linkCandidates[0:linkCandidatesI]
 
-	return linkCandidates, err
+	return
 }
 
 func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
@@ -447,7 +491,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 		}
 
 		c.log.Trace("Got work in %s", time.Since(t).String())
-		urls, err := c.scrapeLinks(randomURL)
+		urls, pluckedData, err := c.scrapeLinks(randomURL)
 		if err != nil {
 			c.log.Error(err.Error())
 			results <- false
@@ -462,7 +506,7 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 			results <- false
 			continue
 		}
-		_, err = c.done.Set(randomURL, "", 0).Result()
+		_, err = c.done.Set(randomURL, pluckedData, 0).Result()
 		if err != nil {
 			c.log.Error(err.Error())
 			results <- false
