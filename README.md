@@ -10,7 +10,7 @@
 
 
 
-<p align="center">*crawdad* is cross-platform web-crawler that can also pinch data.</p>
+<p align="center"><em>crawdad</em> is cross-platform web-crawler that can also pinch data.</p>
 
 *crawdad* is a internet crawler and scraper that is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to synchronize distributed instances. Scraping is specified in a powerful and flexible manner using [*pluck*](https://githbu.com/schollz/pluck). Use *crawdad* to crawl an entire domain and scrape selected content.
 
