@@ -1,7 +1,7 @@
 
 <p align="center">
 <img
-    src="https://user-images.githubusercontent.com/6550035/30241126-96b2b5f2-953a-11e7-8159-bc276ab87201.png"
+    src="logo.png"
     width="260" height="80" border="0" alt="crawdad">
 <br>
 <a href="https://github.com/schollz/crawdad/releases/latest"><img src="https://img.shields.io/badge/version-2.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>
