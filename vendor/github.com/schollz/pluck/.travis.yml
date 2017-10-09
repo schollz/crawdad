@@ -1,0 +1,6 @@
+language: go
+
+go:
+  - tip
+
+before_install: cd pluck
