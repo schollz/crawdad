@@ -1,18 +1,10 @@
-
-<p align="center">
-<img
-    src="https://user-images.githubusercontent.com/6550035/31456157-58663efe-ae76-11e7-8e53-6a2a5b7a196c.png"
-    width="260" height="116" border="0" alt="crawdad">
+<img src="https://user-images.githubusercontent.com/6550035/31456157-58663efe-ae76-11e7-8e53-6a2a5b7a196c.png" width="450" border="0" alt="crawdad" style="float:right;" align="right">
+<h1>crawdad</h1>
+<p>
+<a href="https://github.com/schollz/crawdad/releases/latest"><img src="https://img.shields.io/badge/version-3.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>&nbsp;<img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
 <br>
-<a href="https://github.com/schollz/crawdad/releases/latest"><img src="https://img.shields.io/badge/version-3.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>
-<img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
+<em>crawdad</em> is cross-platform web-crawler that can also pinch data. <em>crawdad</em> is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to persist after interruptions and also synchronize distributed instances. Data extraction can be specified by the simple and powerful <a href="https://github.com/schollz/pluck"><em>pluck</em></a> syntax. 
 </p>
-
-
-
-<p align="center"><em>crawdad</em> is cross-platform web-crawler that can also pinch data.</p>
-
-*crawdad* is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to persist after interruptions and also synchronize distributed instances. Data extraction can be specified by the simple and powerful [*pluck*](https://github.com/schollz/pluck) syntax. 
 
 Crawl responsibly.
 
@@ -21,7 +13,7 @@ Crawl responsibly.
 - Written in Go
 - [Cross-platform releases](https://github.com/schollz/crawdad/releases/latest)
 - Persistent (interruptions can be re-initialized)
-- Distributed (multiple crawdads can be run on diferent machiness)
+- Distributed (multiple crawdads can be run on diferent machines)
 - Scraping using [*pluck*](https://github.com/schollz/pluck)
 - Uses connection pools for lower latency
 - Uses threads for maximum parallelism
