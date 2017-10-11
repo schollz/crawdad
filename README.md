@@ -12,7 +12,7 @@
 
 <p align="center"><em>crawdad</em> is cross-platform web-crawler that can also pinch data.</p>
 
-*crawdad* is a internet crawler and scraper that is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to synchronize distributed instances. Scraping is specified in a powerful and flexible manner using [*pluck*](https://githbu.com/schollz/pluck). Use *crawdad* to crawl an entire domain and scrape selected content.
+*crawdad* is persistent, distributed, and fast. It uses a queue stored in a remote Redis database to persist after interruptions and also synchronize distributed instances. Data extraction can be specified by the simple and powerful [*pluck*](https://github.com/schollz/pluck) syntax. 
 
 Crawl responsibly.
 
@@ -50,6 +50,8 @@ which will store the database in the current directory.
 
 ## Crawling 
 
+By "crawling* the *crawdad* will follow every link that corresponds to the base URL. This is useful for generating sitemaps.
+
 Startup *crawdad* with the base URL:
 
 ```sh
@@ -74,10 +76,11 @@ $ crawdad -dump dump.txt
 
 which will connect to Redis and dump all the links to-do, doing, done, and trashed.
 
-## Scraping
+## Pinching
 
+By "pinching" the *crawdad* will follow the specified links and extract data from each URL that can be dumped later.
 
-To scrape, you will need to make a [*pluck* TOML configuration file](https://github.com/schollz/pluck). For instance, I would like to scrape from my site, rpiai.com, the meta description and the title. My configuration, `pluck.toml`, looks like:
+You will need to make a [*pluck* TOML configuration file](https://github.com/schollz/pluck). For instance, I would like to scrape from my site, rpiai.com, the meta description and the title. My configuration, `pluck.toml`, looks like:
 
 ```toml
 [[pluck]]
