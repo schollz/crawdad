@@ -16,6 +16,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/BurntSushi/toml"
 	"github.com/schollz/pluck/pluck"
 	pb "gopkg.in/cheggaaa/pb.v1"
 
@@ -626,6 +627,12 @@ func (c *Crawler) AddSeeds(seeds []string) (err error) {
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
 	fmt.Printf("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
+	buf := new(bytes.Buffer)
+	if err := toml.NewEncoder(buf).Encode(c.Settings); err != nil {
+		return err
+	}
+	fmt.Println("Settings:")
+	fmt.Println(buf.String())
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0
 	it := 0
