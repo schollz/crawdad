@@ -43,23 +43,23 @@ Otherwise, use the releases and [download crawdad](https://github.com/schollz/cr
 First run Redis:
 
 ```sh
-$ docker run -d -v `pwd`:/data -p 6378:6379 redis 
+$ docker run -d -v `pwd`:/data -p 6379:6379 redis 
 ```
 
 which will store the database in the current directory.
 
 ## Crawling 
 
-Feel free to change the port on your computer (`6378`) to whatever you want. Then startup *crawdad* with the base URL and the Redis port:
+Startup *crawdad* with the base URL:
 
 ```sh
-$ crawdad -port 6379 -set -url https://rpiai.com
+$ crawdad -set -url https://rpiai.com
 ```
 
 This command will set the base URL to crawl as `https://rpiai.com`. You can run *crawdad* on a different machine without setting these parameters again. E.g., on computer 2 you can run:
 
 ```sh
-$ crawdad -port 6379 -server X.X.X.X
+$ crawdad -server X.X.X.X
 ```
 
 where `X.X.X.X` is the IP address of computer 2. This crawdad will now run with whatever parameters set from the first one. If you need to re-set parameters, just use `-set` to specify them again.
@@ -69,7 +69,7 @@ Each machine running *crawdad* will help to crawl the respective website and add
 When done you can dump all the links:
 
 ```sh
-$ crawdad -port 6379 -dump dump.txt
+$ crawdad -dump dump.txt
 ```
 
 which will connect to Redis and dump all the links to-do, doing, done, and trashed.
@@ -97,13 +97,13 @@ limit = 1
 Now I can crawl the site the same way as before, but load in this *pluck* configuration with `--pluck` so it captures the content:
 
 ```sh
-$ crawdad --port 6378 --url "https://rpiai.com" --pluck pluck.toml
+$ crawdad -set -url "https://rpiai.com" -pluck pluck.toml
 ```
 
-To retrieve the data, then you can use the `--done` flag to collect a JSON map of all the plucked data.
+To retrieve the data, then you can use the `-done` flag to collect a JSON map of all the plucked data.
 
 ```sh
-$ crawdad --port 6378 --done data.json
+$ crawdad -done data.json
 ```
 
 This data JSON file will contain each URL as a key and a JSON string of the finished data that contain keys for the description and the title.
