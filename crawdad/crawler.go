@@ -496,7 +496,6 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 		// check if there are any links to do
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
-			c.log.Error(err.Error())
 			results <- false
 			continue
 		}
@@ -511,7 +510,6 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 		// pop a URL
 		randomURL, err := c.todo.RandomKey().Result()
 		if err != nil {
-			c.log.Error(err.Error())
 			results <- false
 			continue
 		}
@@ -581,6 +579,7 @@ func (c *Crawler) AddSeeds(seeds []string) (err error) {
 // Crawl initiates the pool of connections and begins
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
+	fmt.Printf("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0
 	it := 0
@@ -650,6 +649,8 @@ func (c *Crawler) updateListCounts() (err error) {
 
 func (c *Crawler) contantlyPrintStats() {
 	c.isRunning = true
+	fmt.Println(`                                           parsed speed   todo     done     doing    trash     errors
+		(urls/min)`)
 	for {
 		time.Sleep(time.Duration(int32(c.TimeIntervalToPrintStats)) * time.Second)
 		c.updateListCounts()
@@ -663,7 +664,11 @@ func (c *Crawler) contantlyPrintStats() {
 
 func (c *Crawler) printStats() {
 	URLSPerSecond := round(60.0 * float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
-	log.Printf("[%s]\t%s parsed (%d/min)\t%s todo\t%s done\t%s doing\t%s trashed\t%s errors\n",
+	printURL := c.Settings.BaseURL
+	if len(printURL) > 17 {
+		printURL = printURL[:17]
+	}
+	log.Printf("[%17s] %9s %3d %8s %8s %8s %8s %8s\n",
 		c.Settings.BaseURL,
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,

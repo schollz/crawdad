@@ -123,6 +123,21 @@ func main() {
 	}
 
 	app.Action = func(c *cli.Context) error {
+		// Show start-up stuff
+		fmt.Printf(`
+                      _______
+             \\ //   /   -^--\ |  
+             ||||   / /\_____/ /  
+  {\         ______{ }        /   
+  {_}{\{\{\{|         \=@____/    
+ <{_{-{-{-{-| ====---- >>>        
+  { }{/{/{/{|______  _/=@_____    
+  {/               { }        \   
+             ||||  \ \______   \  
+             // \\   \    _^_\ |  
+                      \______/   
+                       
+	crawdad version ` + app.Version + "\n\n")
 		// Setup crawler to crawl
 		craw, err := crawdad.New()
 		if err != nil {
@@ -206,7 +221,6 @@ func main() {
 		} else if c.GlobalBool("redo") {
 			err = craw.Redo()
 		} else {
-			fmt.Printf("Starting crawl")
 			err = craw.Crawl()
 		}
 		return err
