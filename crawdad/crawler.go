@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -103,7 +104,7 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 	})
 	_, err = remoteSettings.Ping().Result()
 	if err != nil {
-		fmt.Printf("Redis not available at %s:%s, did you run it?\nThe easiest way is\ndocker run -p 6379:6379 redis\n\n", c.RedisURL, c.RedisPort)
+		return errors.New(fmt.Sprintf("Redis not available at %s:%s, did you run it? The easiest way is\n\n\tdocker run -d -v `pwd`:/data -p 6379:6379 redis\n\n", c.RedisURL, c.RedisPort))
 	}
 	if len(config) > 0 {
 		// save the supplied configuration to Redis
@@ -118,7 +119,7 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 	var val string
 	val, err = remoteSettings.Get("settings").Result()
 	if err != nil {
-		return
+		return errors.New(fmt.Sprintf("You need to set the base settings. Use\n\n\tcrawdad -s %s -p %s -set -url http://www.URL.com\n\n", c.RedisURL, c.RedisPort))
 	}
 	err = json.Unmarshal([]byte(val), &c.Settings)
 	c.log.Info("loaded settings: %v", c.Settings)
@@ -565,12 +566,16 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 	}
 }
 
-func (c *Crawler) AddSeeds(seeds []string) {
+func (c *Crawler) AddSeeds(seeds []string) (err error) {
 	// add beginning link
 	for _, seed := range seeds {
-		c.addLinkToDo(seed, true)
+		err = c.addLinkToDo(seed, true)
+		if err != nil {
+			return
+		}
 	}
 	c.log.Info("Added %d seed links", len(seeds))
+	return
 }
 
 // Crawl initiates the pool of connections and begins

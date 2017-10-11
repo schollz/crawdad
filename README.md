@@ -33,7 +33,7 @@ First [get Docker CE](https://www.docker.com/community-edition). This will make 
 Then, if you have Go installed, just do
 
 ```
-$ go get github.com/schollz/crawdad/...
+$ go get github.com/schollz/crawdad
 ```
 
 Otherwise, use the releases and [download crawdad](https://github.com/schollz/crawdad/releases/latest).
@@ -43,29 +43,33 @@ Otherwise, use the releases and [download crawdad](https://github.com/schollz/cr
 First run Redis:
 
 ```sh
-$ docker run -d -v /place/to/save/data:/data -p 6378:6379 redis 
+$ docker run -d -v `pwd`:/data -p 6378:6379 redis 
 ```
+
+which will store the database in the current directory.
 
 ## Crawling 
 
 Feel free to change the port on your computer (`6378`) to whatever you want. Then startup *crawdad* with the base URL and the Redis port:
 
 ```sh
-$ crawdad --port 6378 --url "http://rpiai.com"
+$ crawdad -port 6379 -set -url https://rpiai.com
 ```
 
-To run on different machines, just specify the Redis server address with `--server`. Make sure to forward the port on the Redis machine. Then on a different machine, just run:
+This command will set the base URL to crawl as `https://rpiai.com`. You can run *crawdad* on a different machine without setting these parameters again. E.g., on computer 2 you can run:
 
 ```sh
-$ crawdad --server X.X.X.X --port 6378 --url "http://rpiai.com"
+$ crawdad -port 6379 -server X.X.X.X
 ```
+
+where `X.X.X.X` is the IP address of computer 2. This crawdad will now run with whatever parameters set from the first one. If you need to re-set parameters, just use `-set` to specify them again.
 
 Each machine running *crawdad* will help to crawl the respective website and add collected links to a universal queue in the server. The current state of the crawler is saved. If the crawler is interrupted, you can simply run the command again and it will restart from the last state.
 
 When done you can dump all the links:
 
 ```sh
-$ crawdad --port 6378 --dump dump.txt
+$ crawdad -port 6379 -dump dump.txt
 ```
 
 which will connect to Redis and dump all the links to-do, doing, done, and trashed.

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -166,6 +167,21 @@ func main() {
 		}
 		if err != nil {
 			return err
+		}
+
+		if c.GlobalString("seed") != "" {
+			seedData, err := ioutil.ReadFile(c.GlobalString("seed"))
+			if err != nil {
+				return err
+			}
+			seeds := make([]string, len(bytes.Split(seedData, []byte("\n"))))
+			for i, seed := range strings.Split(string(seedData), "\n") {
+				seeds[i] = strings.TrimSpace(seed)
+			}
+			err = craw.AddSeeds(seeds)
+			if err != nil {
+				return err
+			}
 		}
 		if c.GlobalString("dump") != "" {
 			var allKeys []string
