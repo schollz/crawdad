@@ -220,6 +220,14 @@ func (c *Crawler) Redo() (err error) {
 }
 
 func (c *Crawler) DumpMap() (m map[string]string, err error) {
+	fmt.Println("Dumping...")
+	totalSize := int64(0)
+	var tempSize int64
+	tempSize, _ = c.done.DbSize().Result()
+	totalSize = tempSize * 2
+	bar := pb.StartNew(int(totalSize))
+	defer bar.Finish()
+
 	var keySize int64
 	var keys []string
 	keySize, _ = c.done.DbSize().Result()
@@ -227,6 +235,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	i := 0
 	iter := c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -237,6 +246,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	}
 	m = make(map[string]string)
 	for _, key := range keys {
+		bar.Increment()
 		var val string
 		val, err = c.done.Get(key).Result()
 		if err != nil {
@@ -248,15 +258,30 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 }
 
 func (c *Crawler) Dump() (allKeys []string, err error) {
+	fmt.Println("Dumping...")
 	allKeys = make([]string, 0)
 	var keySize int64
 	var keys []string
+
+	totalSize := int64(0)
+	var tempSize int64
+	tempSize, _ = c.todo.DbSize().Result()
+	totalSize += tempSize
+	tempSize, _ = c.done.DbSize().Result()
+	totalSize += tempSize
+	tempSize, _ = c.doing.DbSize().Result()
+	totalSize += tempSize
+	tempSize, _ = c.trash.DbSize().Result()
+	totalSize += tempSize
+	bar := pb.StartNew(int(totalSize))
+	defer bar.Finish()
 
 	keySize, _ = c.todo.DbSize().Result()
 	keys = make([]string, keySize)
 	i := 0
 	iter := c.todo.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -271,6 +296,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.doing.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -285,6 +311,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -299,6 +326,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.trash.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
