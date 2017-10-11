@@ -3,6 +3,8 @@ package crawdad
 import (
 	"bufio"
 	"bytes"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"log"
@@ -15,6 +17,7 @@ import (
 	"time"
 
 	"github.com/schollz/pluck/pluck"
+	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"golang.org/x/net/proxy"
 
@@ -25,67 +28,102 @@ import (
 	"github.com/schollz/collectlinks"
 )
 
+// Settings is the configuration across all instances
+type Settings struct {
+	BaseURL              string
+	PluckConfig          string
+	KeywordsToExclude    []string
+	KeywordsToInclude    []string
+	AllowQueryParameters bool
+	AllowHashParameters  bool
+	DontFollowLinks      bool
+}
+
 // Crawler is the crawler instance
 type Crawler struct {
-	client                   *http.Client
-	todo                     *redis.Client
-	doing                    *redis.Client
-	done                     *redis.Client
-	trash                    *redis.Client
-	wg                       sync.WaitGroup
-	MaxNumberConnections     int
-	MaxNumberWorkers         int
-	BaseURL                  string
-	SeedURL                  string
+	// Instance options
 	RedisURL                 string
 	RedisPort                string
-	PluckConfig              string
-	KeywordsToExclude        []string
-	KeywordsToInclude        []string
+	MaxNumberConnections     int
+	MaxNumberWorkers         int
+	MaximumNumberOfErrors    int
+	TimeIntervalToPrintStats int
 	Verbose                  bool
 	UseProxy                 bool
 	UserAgent                string
-	AllowQueryParameters     bool
-	AllowHashParameters      bool
-	MaximumNumberOfErrors    int
-	log                      *lumber.ConsoleLogger
-	programTime              time.Time
-	numberOfURLSParsed       int
-	TimeIntervalToPrintStats int
-	numTrash                 int64
-	numDone                  int64
-	numToDo                  int64
-	numDoing                 int64
-	isRunning                bool
-	errors                   int64
+
+	// Public  options
+	Settings Settings
+
+	// Private instance parameters
+	log                *lumber.ConsoleLogger
+	programTime        time.Time
+	numberOfURLSParsed int
+	numTrash           int64
+	numDone            int64
+	numToDo            int64
+	numDoing           int64
+	isRunning          bool
+	errors             int64
+	client             *http.Client
+	todo               *redis.Client
+	doing              *redis.Client
+	done               *redis.Client
+	trash              *redis.Client
+	wg                 sync.WaitGroup
 }
 
 // New creates a new crawler instance
-func New(baseurl string) (*Crawler, error) {
+func New() (*Crawler, error) {
 	var err error
 	err = nil
 	c := new(Crawler)
-	c.BaseURL = baseurl
-	c.SeedURL = baseurl
 	c.MaxNumberConnections = 20
 	c.MaxNumberWorkers = 8
-	c.UserAgent = ""
 	c.RedisURL = "localhost"
 	c.RedisPort = "6379"
 	c.TimeIntervalToPrintStats = 1
-	c.errors = 0
 	c.MaximumNumberOfErrors = 10
+	c.errors = 0
 	return c, err
 }
 
 // Init initializes the connection pool and the Redis client
-func (c *Crawler) Init() error {
+func (c *Crawler) Init(config ...Settings) (err error) {
 	// Generate the logging
 	if c.Verbose {
 		c.log = lumber.NewConsoleLogger(lumber.TRACE)
 	} else {
 		c.log = lumber.NewConsoleLogger(lumber.WARN)
 	}
+
+	// connect to Redis for the settings
+	remoteSettings := redis.NewClient(&redis.Options{
+		Addr:     c.RedisURL + ":" + c.RedisPort,
+		Password: "",
+		DB:       4,
+	})
+	_, err = remoteSettings.Ping().Result()
+	if err != nil {
+		return errors.New(fmt.Sprintf("Redis not available at %s:%s, did you run it? The easiest way is\n\n\tdocker run -d -v `pwd`:/data -p 6379:6379 redis\n\n", c.RedisURL, c.RedisPort))
+	}
+	if len(config) > 0 {
+		// save the supplied configuration to Redis
+		bSettings, err := json.Marshal(config[0])
+		_, err = remoteSettings.Set("settings", string(bSettings), 0).Result()
+		if err != nil {
+			return err
+		}
+		c.log.Info("saved settings: %v", config[0])
+	}
+	// load the configuration from Redis
+	var val string
+	val, err = remoteSettings.Get("settings").Result()
+	if err != nil {
+		return errors.New(fmt.Sprintf("You need to set the base settings. Use\n\n\tcrawdad -s %s -p %s -set -url http://www.URL.com\n\n", c.RedisURL, c.RedisPort))
+	}
+	err = json.Unmarshal([]byte(val), &c.Settings)
+	c.log.Info("loaded settings: %v", c.Settings)
 
 	// Generate the connection pool
 	var tr *http.Transport
@@ -139,11 +177,9 @@ func (c *Crawler) Init() error {
 		Password: "", // no password set
 		DB:       3,  // use default DB
 	})
-	_, err := c.todo.Ping().Result()
-	if err != nil {
-		fmt.Printf("Redis not available at %s:%s, did you run it?\nThe easiest way is\ndocker run -p 6379:6379 redis\n\n", c.RedisURL, c.RedisPort)
-	}
-	return err
+
+	c.AddSeeds([]string{c.Settings.BaseURL})
+	return
 }
 
 func (c *Crawler) Redo() (err error) {
@@ -184,6 +220,14 @@ func (c *Crawler) Redo() (err error) {
 }
 
 func (c *Crawler) DumpMap() (m map[string]string, err error) {
+	fmt.Println("Dumping...")
+	totalSize := int64(0)
+	var tempSize int64
+	tempSize, _ = c.done.DbSize().Result()
+	totalSize = tempSize * 2
+	bar := pb.StartNew(int(totalSize))
+	defer bar.Finish()
+
 	var keySize int64
 	var keys []string
 	keySize, _ = c.done.DbSize().Result()
@@ -191,6 +235,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	i := 0
 	iter := c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -201,6 +246,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	}
 	m = make(map[string]string)
 	for _, key := range keys {
+		bar.Increment()
 		var val string
 		val, err = c.done.Get(key).Result()
 		if err != nil {
@@ -212,15 +258,30 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 }
 
 func (c *Crawler) Dump() (allKeys []string, err error) {
+	fmt.Println("Dumping...")
 	allKeys = make([]string, 0)
 	var keySize int64
 	var keys []string
+
+	totalSize := int64(0)
+	var tempSize int64
+	tempSize, _ = c.todo.DbSize().Result()
+	totalSize += tempSize
+	tempSize, _ = c.done.DbSize().Result()
+	totalSize += tempSize
+	tempSize, _ = c.doing.DbSize().Result()
+	totalSize += tempSize
+	tempSize, _ = c.trash.DbSize().Result()
+	totalSize += tempSize
+	bar := pb.StartNew(int(totalSize))
+	defer bar.Finish()
 
 	keySize, _ = c.todo.DbSize().Result()
 	keys = make([]string, keySize)
 	i := 0
 	iter := c.todo.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -235,6 +296,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.doing.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -249,6 +311,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -263,6 +326,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.trash.Scan(0, "", 0).Iterator()
 	for iter.Next() {
+		bar.Increment()
 		keys[i] = iter.Val()
 		i++
 	}
@@ -362,9 +426,9 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	resp.Body = ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 
 	// do plucking
-	if c.PluckConfig != "" {
+	if c.Settings.PluckConfig != "" {
 		plucker, _ := pluck.New()
-		err = plucker.Load(c.PluckConfig)
+		err = plucker.LoadFromString(c.Settings.PluckConfig)
 		if err != nil {
 			return
 		}
@@ -373,6 +437,10 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 			return
 		}
 		pluckedData = plucker.ResultJSON()
+	}
+
+	if c.Settings.DontFollowLinks {
+		return
 	}
 
 	// collect links
@@ -384,25 +452,25 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	for _, link := range links {
 		c.log.Trace(link)
 		// disallow query parameters, if not flagged
-		if strings.Contains(link, "?") && !c.AllowQueryParameters {
+		if strings.Contains(link, "?") && !c.Settings.AllowQueryParameters {
 			link = strings.Split(link, "?")[0]
 		}
 
 		// disallow hash parameters, if not flagged
-		if strings.Contains(link, "#") && !c.AllowHashParameters {
+		if strings.Contains(link, "#") && !c.Settings.AllowHashParameters {
 			link = strings.Split(link, "#")[0]
 		}
 
 		// add Base URL if it doesn't have
 		if !strings.Contains(link, "http") && len(link) > 2 {
-			if c.BaseURL[len(c.BaseURL)-1] != '/' && link[0] != '/' {
+			if c.Settings.BaseURL[len(c.Settings.BaseURL)-1] != '/' && link[0] != '/' {
 				link = "/" + link
 			}
-			link = c.BaseURL + link
+			link = c.Settings.BaseURL + link
 		}
 
 		// skip links that have a different Base URL
-		if !strings.Contains(link, c.BaseURL) {
+		if !strings.Contains(link, c.Settings.BaseURL) {
 			// c.log.Trace("Skipping %s because it has a different base URL", link)
 			continue
 		}
@@ -416,7 +484,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 
 		// Exclude keywords, skip if any are found
 		foundExcludedKeyword := false
-		for _, keyword := range c.KeywordsToExclude {
+		for _, keyword := range c.Settings.KeywordsToExclude {
 			if strings.Contains(normalizedLink, keyword) {
 				foundExcludedKeyword = true
 				// c.log.Trace("Skipping %s because contains %s", link, keyword)
@@ -429,13 +497,13 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 
 		// Include keywords, skip if any are NOT found
 		foundIncludedKeyword := false
-		for _, keyword := range c.KeywordsToInclude {
+		for _, keyword := range c.Settings.KeywordsToInclude {
 			if strings.Contains(normalizedLink, keyword) {
 				foundIncludedKeyword = true
 				break
 			}
 		}
-		if !foundIncludedKeyword && len(c.KeywordsToInclude) > 0 {
+		if !foundIncludedKeyword && len(c.Settings.KeywordsToInclude) > 0 {
 			continue
 		}
 
@@ -457,7 +525,6 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 		// check if there are any links to do
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
-			c.log.Error(err.Error())
 			results <- false
 			continue
 		}
@@ -472,7 +539,6 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 		// pop a URL
 		randomURL, err := c.todo.RandomKey().Result()
 		if err != nil {
-			c.log.Error(err.Error())
 			results <- false
 			continue
 		}
@@ -527,12 +593,31 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 	}
 }
 
+func (c *Crawler) AddSeeds(seeds []string) (err error) {
+	// add beginning link
+	var bar *pb.ProgressBar
+	if len(seeds) > 100 {
+		fmt.Println("Adding seeds...")
+		bar = pb.StartNew(len(seeds))
+		defer bar.Finish()
+	}
+	for _, seed := range seeds {
+		if len(seeds) > 100 {
+			bar.Increment()
+		}
+		err = c.addLinkToDo(seed, true)
+		if err != nil {
+			return
+		}
+	}
+	c.log.Info("Added %d seed links", len(seeds))
+	return
+}
+
 // Crawl initiates the pool of connections and begins
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
-	// add beginning link
-	c.addLinkToDo(c.SeedURL, true)
-
+	fmt.Printf("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0
 	it := 0
@@ -602,6 +687,8 @@ func (c *Crawler) updateListCounts() (err error) {
 
 func (c *Crawler) contantlyPrintStats() {
 	c.isRunning = true
+	fmt.Println(`                                           parsed speed   todo     done     doing    trash     errors
+		(urls/min)`)
 	for {
 		time.Sleep(time.Duration(int32(c.TimeIntervalToPrintStats)) * time.Second)
 		c.updateListCounts()
@@ -615,8 +702,12 @@ func (c *Crawler) contantlyPrintStats() {
 
 func (c *Crawler) printStats() {
 	URLSPerSecond := round(60.0 * float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
-	log.Printf("[%s]\t%s parsed (%d/min)\t%s todo\t%s done\t%s doing\t%s trashed\t%s errors\n",
-		c.BaseURL,
+	printURL := c.Settings.BaseURL
+	if len(printURL) > 17 {
+		printURL = printURL[:17]
+	}
+	log.Printf("[%17s] %9s %3d %8s %8s %8s %8s %8s\n",
+		c.Settings.BaseURL,
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
 		humanize.Comma(int64(c.numToDo)),

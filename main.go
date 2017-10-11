@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -22,16 +23,6 @@ func main() {
 	app.Compiled = time.Now()
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:  "url, u",
-			Value: "",
-			Usage: "base URL to crawl",
-		},
-		cli.StringFlag{
-			Name:  "seed",
-			Value: "",
-			Usage: "URL to seed with",
-		},
-		cli.StringFlag{
 			Name:  "server, s",
 			Value: "localhost",
 			Usage: "address for Redis server",
@@ -42,19 +33,29 @@ func main() {
 			Usage: "port for Redis server",
 		},
 		cli.StringFlag{
+			Name:  "url, u",
+			Value: "",
+			Usage: "set base URL to crawl",
+		},
+		cli.StringFlag{
 			Name:  "exclude, e",
 			Value: "",
-			Usage: "comma-delimted phrases that must NOT be in URL",
+			Usage: "set comma-delimted phrases that must NOT be in URL",
 		},
 		cli.StringFlag{
 			Name:  "include, i",
 			Value: "",
-			Usage: "comma-delimted phrases that must be in URL",
+			Usage: "set comma-delimted phrases that must be in URL",
+		},
+		cli.StringFlag{
+			Name:  "seed",
+			Value: "",
+			Usage: "`file` with URLs to add to queue",
 		},
 		cli.StringFlag{
 			Name:  "pluck",
 			Value: "",
-			Usage: "config file for a plucker (see github.com/schollz/pluck)",
+			Usage: "set config file for a plucker (see github.com/schollz/pluck)",
 		},
 		cli.IntFlag{
 			Name:  "stats",
@@ -78,6 +79,10 @@ func main() {
 		cli.BoolFlag{
 			Name:  "proxy",
 			Usage: "use tor proxy",
+		},
+		cli.BoolFlag{
+			Name:  "set",
+			Usage: "set options across crawdads",
 		},
 		cli.StringFlag{
 			Name:  "dump",
@@ -106,6 +111,10 @@ func main() {
 			Name:  "hash",
 			Usage: "allow hashes in URL",
 		},
+		cli.BoolFlag{
+			Name:  "no-follow",
+			Usage: "do not follow links (useful with -seed)",
+		},
 		cli.IntFlag{
 			Name:  "errors",
 			Value: 10,
@@ -114,42 +123,80 @@ func main() {
 	}
 
 	app.Action = func(c *cli.Context) error {
+		// Show start-up stuff
+		fmt.Printf(`
+                      _______
+             \\ //   /   -^--\ |  
+             ||||   / /\_____/ /  
+  {\         ______{ }        /   
+  {_}{\{\{\{|         \=@____/    
+ <{_{-{-{-{-| ====---- >>>        
+  { }{/{/{/{|______  _/=@_____    
+  {/               { }        \   
+             ||||  \ \______   \  
+             // \\   \    _^_\ |  
+                      \______/   
+                       
+	crawdad version ` + app.Version + "\n\n")
 		// Setup crawler to crawl
-		url := c.GlobalString("url")
-		craw, err := crawdad.New(url)
+		craw, err := crawdad.New()
 		if err != nil {
 			return err
 		}
+		// set instance options
 		craw.MaxNumberConnections = c.GlobalInt("connections")
 		craw.MaxNumberWorkers = c.GlobalInt("workers")
 		craw.Verbose = c.GlobalBool("verbose")
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
-		craw.AllowQueryParameters = c.GlobalBool("query")
-		craw.AllowHashParameters = c.GlobalBool("hash")
+
+		// set public options
+		var options crawdad.Settings
+		if c.GlobalBool("set") {
+			options.BaseURL = c.GlobalString("url")
+			options.AllowQueryParameters = c.GlobalBool("query")
+			options.AllowHashParameters = c.GlobalBool("hash")
+			options.DontFollowLinks = c.GlobalBool("no-follow")
+			if len(c.GlobalString("include")) > 0 {
+				options.KeywordsToInclude = strings.Split(strings.ToLower(c.GlobalString("include")), ",")
+			}
+			if len(c.GlobalString("exclude")) > 0 {
+				options.KeywordsToExclude = strings.Split(strings.ToLower(c.GlobalString("exclude")), ",")
+			}
+			if len(c.GlobalString("pluck")) > 0 {
+				bFile, errFile := ioutil.ReadFile(c.GlobalString("pluck"))
+				if errFile != nil {
+					return errFile
+				}
+				options.PluckConfig = string(bFile)
+			}
+		}
 		craw.UseProxy = c.GlobalBool("proxy")
 		craw.RedisPort = c.GlobalString("port")
 		craw.RedisURL = c.GlobalString("server")
 		craw.MaximumNumberOfErrors = c.GlobalInt("errors")
-		craw.PluckConfig = c.GlobalString("pluck")
-		if craw.PluckConfig != "" {
-			_, err := os.Stat(craw.PluckConfig)
+		if c.GlobalBool("set") {
+			err = craw.Init(options)
+		} else {
+			err = craw.Init()
+		}
+		if err != nil {
+			return err
+		}
+
+		if c.GlobalString("seed") != "" {
+			seedData, err := ioutil.ReadFile(c.GlobalString("seed"))
 			if err != nil {
 				return err
 			}
-		}
-		if len(c.GlobalString("seed")) > 0 {
-			craw.SeedURL = c.GlobalString("seed")
-		}
-		if len(c.GlobalString("include")) > 0 {
-			craw.KeywordsToInclude = strings.Split(strings.ToLower(c.GlobalString("include")), ",")
-		}
-		if len(c.GlobalString("exclude")) > 0 {
-			craw.KeywordsToExclude = strings.Split(strings.ToLower(c.GlobalString("exclude")), ",")
-		}
-		err = craw.Init()
-		if err != nil {
-			return err
+			seeds := make([]string, len(bytes.Split(seedData, []byte("\n"))))
+			for i, seed := range strings.Split(string(seedData), "\n") {
+				seeds[i] = strings.TrimSpace(seed)
+			}
+			err = craw.AddSeeds(seeds)
+			if err != nil {
+				return err
+			}
 		}
 		if c.GlobalString("dump") != "" {
 			var allKeys []string
@@ -174,11 +221,6 @@ func main() {
 		} else if c.GlobalBool("redo") {
 			err = craw.Redo()
 		} else {
-			if url == "" {
-				fmt.Println("You should specify a URL to crawl, --url URL")
-				return nil
-			}
-			fmt.Printf("Starting crawl on %s\n\n", url)
 			err = craw.Crawl()
 		}
 		return err
