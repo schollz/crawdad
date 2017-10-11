@@ -44,6 +44,12 @@
   revision = "dd349441af25132d146d7095c6693a15431fc9b1"
 
 [[projects]]
+  name = "github.com/mattn/go-runewidth"
+  packages = ["."]
+  revision = "9e777a8366cce605130a531d2cd6363d07ad7317"
+  version = "v0.0.2"
+
+[[projects]]
   name = "github.com/pkg/errors"
   packages = ["."]
   revision = "645ef00459ed84a119197bfb8d8205042c6df63d"
@@ -97,9 +103,15 @@
   packages = ["collate","collate/build","internal/colltab","internal/gen","internal/tag","internal/triegen","internal/ucd","language","secure/bidirule","transform","unicode/bidi","unicode/cldr","unicode/norm","unicode/rangetable","width"]
   revision = "825fc78a2fd6fa0a5447e300189e3219e05e1f25"
 
+[[projects]]
+  name = "gopkg.in/cheggaaa/pb.v1"
+  packages = ["."]
+  revision = "657164d0228d6bebe316fdf725c69f131a50fb10"
+  version = "v1.0.18"
+
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "36694342030e3b64f47b637a400c7ec2c7e2490ac23d59ec6d9ac977a1366adf"
+  inputs-digest = "3754495c2e9b46ad85e96a7fdb9856d1bc4c3cac395367f545eba845e46ecfe8"
   solver-name = "gps-cdcl"
   solver-version = 1
