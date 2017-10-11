@@ -4,7 +4,7 @@
     src="https://user-images.githubusercontent.com/6550035/31456157-58663efe-ae76-11e7-8e53-6a2a5b7a196c.png"
     width="260" height="116" border="0" alt="crawdad">
 <br>
-<a href="https://github.com/schollz/crawdad/releases/latest"><img src="https://img.shields.io/badge/version-2.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>
+<a href="https://github.com/schollz/crawdad/releases/latest"><img src="https://img.shields.io/badge/version-3.0.0-brightgreen.svg?style=flat-square" alt="Version"></a>
 <img src="https://img.shields.io/badge/coverage-59%25-yellow.svg?style=flat-square" alt="Code Coverage">
 </p>
 
