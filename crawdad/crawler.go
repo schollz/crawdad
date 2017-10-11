@@ -413,18 +413,18 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode == 404 {
+	if resp.StatusCode != 200 {
 		c.doing.Del(url).Result()
 		c.todo.Del(url).Result()
 		c.trash.Set(url, "", 0).Result()
-		return
-	} else if resp.StatusCode != 200 {
 		c.errors++
 		if c.errors > int64(c.MaximumNumberOfErrors) {
 			fmt.Println("Too many errors, exiting!")
 			os.Exit(1)
 		}
+		return
 	}
+
 	// reset errors as long as the code is good
 	c.errors = 0
 
