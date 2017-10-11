@@ -26,7 +26,7 @@ import (
 	"github.com/schollz/collectlinks"
 )
 
-// Config is the configuration across all instances
+// Settings is the configuration across all instances
 type Settings struct {
 	BaseURL              string
 	PluckConfig          string
@@ -407,6 +407,10 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 			return
 		}
 		pluckedData = plucker.ResultJSON()
+	}
+
+	if c.Settings.DontFollowLinks {
+		return
 	}
 
 	// collect links
