@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/schollz/pluck/pluck"
+	pb "gopkg.in/cheggaaa/pb.v1"
 
 	"golang.org/x/net/proxy"
 
@@ -566,7 +567,16 @@ func (c *Crawler) crawl(id int, jobs <-chan int, results chan<- bool) {
 
 func (c *Crawler) AddSeeds(seeds []string) (err error) {
 	// add beginning link
+	var bar *pb.ProgressBar
+	if len(seeds) > 100 {
+		fmt.Println("Adding seeds...")
+		bar = pb.StartNew(len(seeds))
+		defer bar.Finish()
+	}
 	for _, seed := range seeds {
+		if len(seeds) > 100 {
+			bar.Increment()
+		}
 		err = c.addLinkToDo(seed, true)
 		if err != nil {
 			return
