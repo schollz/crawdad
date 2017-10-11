@@ -187,13 +187,14 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	var keySize int64
 	var keys []string
 	keySize, _ = c.done.DbSize().Result()
-	keys = make([]string, keySize)
+	keys = make([]string, keySize+10000)
 	i := 0
 	iter := c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
 		keys[i] = iter.Val()
 		i++
 	}
+	keys = keys[:i]
 	if err = iter.Err(); err != nil {
 		c.log.Error("Problem getting done")
 		return
