@@ -58,8 +58,8 @@
 [[projects]]
   name = "github.com/schollz/pluck"
   packages = ["pluck","pluck/striphtml"]
-  revision = "edb8eaf4e9dbcf819bafa5f9032048628cbfd42c"
-  version = "v1.1.1"
+  revision = "89a476ddeec87655d353adf31579f0328ca8f842"
+  version = "v1.1.2"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"

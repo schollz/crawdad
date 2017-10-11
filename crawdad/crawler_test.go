@@ -7,7 +7,7 @@ import (
 
 func TestGeneral(t *testing.T) {
 
-	crawl, err := New("http://localhost:8000")
+	crawl, err := New()
 	if err != nil {
 		t.Error(err)
 	}
@@ -16,7 +16,9 @@ func TestGeneral(t *testing.T) {
 	crawl.RedisPort = "6379"
 	crawl.Verbose = true
 
-	err = crawl.Init()
+	err = crawl.Init(Settings{
+		BaseURL: "http://rpiai.com",
+	})
 	if err != nil {
 		t.Error(err)
 	}
@@ -36,12 +38,12 @@ func TestGeneral(t *testing.T) {
 }
 
 func TestProxy(t *testing.T) {
-	crawl, err := New("http://rpiai.com/")
+	crawl, err := New()
 	if err != nil {
 		t.Error(err)
 	}
 	crawl.RedisURL = "localhost"
-	crawl.RedisPort = "6378"
+	crawl.RedisPort = "6379"
 	crawl.Verbose = true
 	crawl.Init()
 	ip, err := crawl.getIP()
@@ -60,21 +62,25 @@ func TestProxy(t *testing.T) {
 
 func TestPlucking(t *testing.T) {
 
-	crawl, err := New("https://rpiai.com")
+	crawl, err := New()
 	if err != nil {
 		t.Error(err)
 	}
 
 	crawl.RedisURL = "localhost"
 	crawl.RedisPort = "6379"
-	crawl.Verbose = false
+	crawl.Verbose = true
 
-	err = crawl.Init()
+	err = crawl.Init(Settings{
+		BaseURL: "https://rpiai.com",
+		PluckConfig: `[[pluck]]
+activators = ['h1','"post-full-title','>']
+deactivator = '</'
+limit = 1`,
+	})
 	if err != nil {
 		t.Error(err)
 	}
-
-	crawl.PluckConfig = "test/rpiai.toml"
 
 	err = crawl.Crawl()
 	if err != nil {
