@@ -83,7 +83,7 @@ func New() (*Crawler, error) {
 	c.RedisURL = "localhost"
 	c.RedisPort = "6379"
 	c.TimeIntervalToPrintStats = 1
-	c.MaximumNumberOfErrors = 10
+	c.MaximumNumberOfErrors = 20
 	c.errors = 0
 	return c, err
 }
@@ -158,24 +158,32 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 
 	// Setup Redis client
 	c.todo = redis.NewClient(&redis.Options{
-		Addr:     c.RedisURL + ":" + c.RedisPort,
-		Password: "", // no password set
-		DB:       0,  // use default DB
+		Addr:        c.RedisURL + ":" + c.RedisPort,
+		Password:    "", // no password set
+		DB:          0,  // use default DB
+		ReadTimeout: 30 * time.Second,
+		MaxRetries:  10,
 	})
 	c.doing = redis.NewClient(&redis.Options{
-		Addr:     c.RedisURL + ":" + c.RedisPort,
-		Password: "", // no password set
-		DB:       1,  // use default DB
+		Addr:        c.RedisURL + ":" + c.RedisPort,
+		Password:    "", // no password set
+		DB:          1,  // use default DB
+		ReadTimeout: 30 * time.Second,
+		MaxRetries:  10,
 	})
 	c.done = redis.NewClient(&redis.Options{
-		Addr:     c.RedisURL + ":" + c.RedisPort,
-		Password: "", // no password set
-		DB:       2,  // use default DB
+		Addr:        c.RedisURL + ":" + c.RedisPort,
+		Password:    "", // no password set
+		DB:          2,  // use default DB
+		ReadTimeout: 30 * time.Second,
+		MaxRetries:  10,
 	})
 	c.trash = redis.NewClient(&redis.Options{
-		Addr:     c.RedisURL + ":" + c.RedisPort,
-		Password: "", // no password set
-		DB:       3,  // use default DB
+		Addr:        c.RedisURL + ":" + c.RedisPort,
+		Password:    "", // no password set
+		DB:          3,  // use default DB
+		ReadTimeout: 30 * time.Second,
+		MaxRetries:  10,
 	})
 
 	c.AddSeeds([]string{c.Settings.BaseURL})
