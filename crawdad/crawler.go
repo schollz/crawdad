@@ -725,8 +725,8 @@ func (c *Crawler) updateListCounts() (err error) {
 
 func (c *Crawler) contantlyPrintStats() {
 	c.isRunning = true
-	fmt.Println(`                                           parsed speed   todo     done     doing    trash     errors
-		(urls/min)`)
+	fmt.Println(`                                           parsed speed   todo     done     doing   trash      errors
+                                                (urls/min)`)
 	for {
 		time.Sleep(time.Duration(int32(c.TimeIntervalToPrintStats)) * time.Second)
 		c.updateListCounts()
@@ -740,12 +740,13 @@ func (c *Crawler) contantlyPrintStats() {
 
 func (c *Crawler) printStats() {
 	URLSPerSecond := round(60.0 * float64(c.numberOfURLSParsed) / float64(time.Since(c.programTime).Seconds()))
-	printURL := c.Settings.BaseURL
+	printURL := strings.Replace(c.Settings.BaseURL, "https://", "", 1)
+	printURL = strings.Replace(printURL, "http://", "", 1)
 	if len(printURL) > 17 {
 		printURL = printURL[:17]
 	}
 	log.Printf("[%17s] %9s %3d %8s %8s %8s %8s %8s\n",
-		c.Settings.BaseURL,
+		printURL,
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
 		humanize.Comma(int64(c.numToDo)),
