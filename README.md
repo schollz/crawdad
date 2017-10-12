@@ -8,6 +8,8 @@
 
 Crawl responsibly.
 
+For a tutorial on how to use *crawdad* see [my blog post](https://schollz.github.io/crawdad/).
+
 # Features
 
 - Written in Go
@@ -113,27 +115,30 @@ $ cat data.json | grep why
 There are lots of other options:
 
 ```
-   --url value, -u value          base URL to crawl
-   --seed value                   URL to seed with
    --server value, -s value       address for Redis server (default: "localhost")
    --port value, -p value         port for Redis server (default: "6379")
-   --exclude value, -e value      comma-delimted phrases that must NOT be in URL
-   --include value, -i value      comma-delimted phrases that must be in URL
-   --pluck value                  config file for a plucker (see github.com/schollz/pluck)
+   --url value, -u value          set base URL to crawl
+   --exclude value, -e value      set comma-delimted phrases that must NOT be in URL
+   --include value, -i value      set comma-delimted phrases that must be in URL
+   --seed file                    file with URLs to add to queue
+   --pluck value                  set config file for a plucker (see github.com/schollz/pluck)
    --stats X                      Print stats every X seconds (default: 1)
    --connections value, -c value  number of connections to use (default: 25)
    --workers value, -w value      number of connections to use (default: 8)
    --verbose                      turn on logging
    --proxy                        use tor proxy
+   --set                          set options across crawdads
    --dump file                    dump all the keys to file
    --done file                    dump the map of the done things file
    --useragent useragent          set the specified useragent
    --redo                         move items from 'doing' to 'todo'
    --query                        allow query parameters in URL
    --hash                         allow hashes in URL
+   --no-follow                    do not follow links (useful with -seed)
    --errors value                 maximum number of errors before exiting (default: 10)
    --help, -h                     show help
    --version, -v                  print the version
+
 ```
 
 # Dev
@@ -142,7 +147,7 @@ To run tests
 
 ```
 $ docker run -d -v `pwd`:/data -p 6379:6379 redis
-$ cd lib && go test -cover
+$ cd crawdad && go test -v -cover
 ```
 
 # License
