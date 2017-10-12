@@ -28,8 +28,8 @@
 [[projects]]
   name = "github.com/go-redis/redis"
   packages = [".","internal","internal/consistenthash","internal/hashtag","internal/pool","internal/proto"]
-  revision = "8e6b51ec3a92ec095dcbd2439c7a3eec6b6cb586"
-  version = "v6.7.1"
+  revision = "35248155a505a84811be81a2aab1c423317447be"
+  version = "v6.7.2"
 
 [[projects]]
   branch = "master"
@@ -64,8 +64,8 @@
 [[projects]]
   name = "github.com/schollz/pluck"
   packages = ["pluck","pluck/striphtml"]
-  revision = "89a476ddeec87655d353adf31579f0328ca8f842"
-  version = "v1.1.2"
+  revision = "302f3dda2ff57bdb19deec950837ad062daf409a"
+  version = "v1.1.3"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
@@ -112,6 +112,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3754495c2e9b46ad85e96a7fdb9856d1bc4c3cac395367f545eba845e46ecfe8"
+  inputs-digest = "8fc485dae46f25824620aef7b0f21c6392efa2a7f6497249cf228f5168e79d65"
   solver-name = "gps-cdcl"
   solver-version = 1
