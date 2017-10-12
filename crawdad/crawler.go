@@ -187,7 +187,9 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		MaxRetries:  10,
 	})
 
-	c.AddSeeds([]string{c.Settings.BaseURL})
+	if len(c.Settings.BaseURL) > 0 {
+		c.AddSeeds([]string{c.Settings.BaseURL})
+	}
 	return
 }
 
@@ -394,6 +396,27 @@ func (c *Crawler) addLinkToDo(link string, force bool) (err error) {
 
 	// add it to the todo list
 	err = c.todo.Set(link, "", 0).Err()
+	return
+}
+
+// Flush erases the database
+func (c *Crawler) Flush() (err error) {
+	_, err = c.todo.FlushAll().Result()
+	if err != nil {
+		return
+	}
+	_, err = c.done.FlushAll().Result()
+	if err != nil {
+		return
+	}
+	_, err = c.doing.FlushAll().Result()
+	if err != nil {
+		return
+	}
+	_, err = c.trash.FlushAll().Result()
+	if err != nil {
+		return
+	}
 	return
 }
 
