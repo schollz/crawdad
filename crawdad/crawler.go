@@ -54,6 +54,7 @@ type Crawler struct {
 	UseProxy                 bool
 	UserAgent                string
 	EraseDB                  bool
+	MaxQueueSize             int
 
 	// Public  options
 	Settings Settings
@@ -74,6 +75,12 @@ type Crawler struct {
 	done               *redis.Client
 	trash              *redis.Client
 	wg                 sync.WaitGroup
+	queue              *syncmap
+}
+
+type syncmap struct {
+	Data map[string]struct{}
+	sync.RWMutex
 }
 
 // New creates a new crawler instance
@@ -88,6 +95,11 @@ func New() (*Crawler, error) {
 	c.TimeIntervalToPrintStats = 1
 	c.MaximumNumberOfErrors = 20
 	c.errors = 0
+	c.MaxQueueSize = 500
+	c.queue = new(syncmap)
+	c.queue.Lock()
+	c.queue.Data = make(map[string]struct{})
+	c.queue.Unlock()
 	return c, err
 }
 
@@ -571,9 +583,6 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 	for randomURL := range jobs {
 		// time the link getting process
-		t := time.Now()
-
-		c.log.Trace("Got work in %s", time.Since(t).String())
 		urls, pluckedData, err := c.scrapeLinks(randomURL)
 		if err != nil {
 			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id)+" failed scraping, will retry")
@@ -589,7 +598,7 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 			continue
 		}
 
-		t = time.Now()
+		t := time.Now()
 
 		// move url to 'done'
 		_, err = c.doing.Del(randomURL).Result()
@@ -640,6 +649,66 @@ func (c *Crawler) AddSeeds(seeds []string) (err error) {
 	return
 }
 
+func (c *Crawler) enqueue() {
+	defer c.stopCrawling()
+	for {
+		// check if queue is full
+		c.queue.RLock()
+		queueSize := len(c.queue.Data)
+		c.queue.RUnlock()
+		if queueSize > c.MaxQueueSize {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		// check if there are any links to do
+		t := time.Now()
+		c.log.Trace("Gathering URLS to send to workers")
+		dbsize, err := c.todo.DbSize().Result()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// break if there are no links to do
+		if dbsize == 0 {
+			c.log.Info("No more work to do!")
+			break
+		}
+
+		urlsToDo := make([]string, 10)
+		i := 0
+		iter := c.todo.Scan(0, "", 0).Iterator()
+		for iter.Next() {
+			urlsToDo[i] = iter.Val()
+			c.log.Trace("Got %s", urlsToDo[i])
+			// place in 'doing'
+			_, err = c.todo.Del(urlsToDo[i]).Result()
+			if err != nil {
+				log.Fatal(errors.Wrap(err, "problem removing from todo"))
+			}
+			c.log.Trace("Deleted %s from todo", urlsToDo[i])
+			_, err = c.doing.Set(urlsToDo[i], "", 0).Result()
+			if err != nil {
+				log.Fatal(errors.Wrap(err, "problem placing in doing"))
+			}
+			c.log.Trace("Moved %s to doing", urlsToDo[i])
+			i++
+			if i == len(urlsToDo) {
+				break
+			}
+		}
+		urlsToDo = urlsToDo[:i]
+		c.log.Info("Collected %d URLs to send to workers [%s]", len(urlsToDo), time.Since(t).String())
+
+		c.queue.Lock()
+		for _, url := range urlsToDo {
+			c.queue.Data[url] = struct{}{}
+		}
+		c.queue.Unlock()
+
+	}
+}
+
 // Crawl initiates the pool of connections and begins
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
@@ -652,57 +721,38 @@ func (c *Crawler) Crawl() (err error) {
 	fmt.Println(buf.String())
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0
+	c.isRunning = true
 	go c.contantlyPrintStats()
-	defer c.stopCrawling()
+	go c.enqueue()
 	for {
-		// check if there are any links to do
-		dbsize, err := c.todo.DbSize().Result()
-		if err != nil {
-			return err
-		}
-
-		// break if there are no links to do
-		if dbsize == 0 {
-			c.log.Info("No more work to do!")
+		if !c.isRunning {
 			break
 		}
 
-		urlsToDo := make([]string, c.MaxNumberWorkers)
-		maxI := 0
-		for i := 0; i < c.MaxNumberWorkers; i++ {
-			randomURL, err := c.todo.RandomKey().Result()
-			if err != nil {
-				continue
-			}
-			urlsToDo[i] = randomURL
-			maxI = i
+		c.queue.RLock()
+		queueSize := len(c.queue.Data)
+		c.queue.RUnlock()
 
-			// place in 'doing'
-			_, err = c.todo.Del(randomURL).Result()
-			if err != nil {
-				return errors.Wrap(err, "problem removing from todo")
-			}
-			_, err = c.doing.Set(randomURL, "", 0).Result()
-			if err != nil {
-				return errors.Wrap(err, "problem placing in doing")
-			}
-
+		if queueSize == 0 {
+			time.Sleep(100 * time.Millisecond)
+			continue
 		}
-		urlsToDo = urlsToDo[:maxI+1]
-		c.log.Info("Collected %d URLs to send to workers", len(urlsToDo))
 
-		jobs := make(chan string, len(urlsToDo))
-		results := make(chan error, len(urlsToDo))
+		jobs := make(chan string, queueSize)
+		results := make(chan error, queueSize)
 
-		for w := range urlsToDo {
+		for w := 0; w < queueSize; w++ {
 			go c.crawl(w, jobs, results)
 		}
-		for _, j := range urlsToDo {
+		c.queue.Lock()
+		for j := range c.queue.Data {
+			delete(c.queue.Data, j)
 			jobs <- j
 		}
+		c.queue.Unlock()
 		close(jobs)
 
-		for a := 0; a < len(urlsToDo); a++ {
+		for a := 0; a < queueSize; a++ {
 			err := <-results
 			if err != nil {
 				c.log.Warn(err.Error())
