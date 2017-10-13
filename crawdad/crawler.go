@@ -10,6 +10,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -575,7 +576,16 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 		c.log.Trace("Got work in %s", time.Since(t).String())
 		urls, pluckedData, err := c.scrapeLinks(randomURL)
 		if err != nil {
-			results <- errors.Wrap(err, "worker #"+string(id)+" failed scraping, will retry")
+			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id)+" failed scraping, will retry")
+			// move url to back to 'todo'
+			_, err2 := c.doing.Del(randomURL).Result()
+			if err2 != nil {
+				c.log.Error(err2.Error())
+			}
+			_, err2 = c.todo.Set(randomURL, "", 0).Result()
+			if err2 != nil {
+				c.log.Error(err2.Error())
+			}
 			continue
 		}
 
@@ -584,12 +594,12 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 		// move url to 'done'
 		_, err = c.doing.Del(randomURL).Result()
 		if err != nil {
-			results <- errors.Wrap(err, "worker #"+string(id))
+			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id))
 			continue
 		}
 		_, err = c.done.Set(randomURL, pluckedData, 0).Result()
 		if err != nil {
-			results <- errors.Wrap(err, "worker #"+string(id))
+			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id))
 			continue
 		}
 
