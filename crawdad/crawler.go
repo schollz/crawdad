@@ -49,9 +49,11 @@ type Crawler struct {
 	MaxNumberWorkers         int
 	MaximumNumberOfErrors    int
 	TimeIntervalToPrintStats int
-	Verbose                  bool
+	Debug                    bool
+	Info                     bool
 	UseProxy                 bool
 	UserAgent                string
+	EraseDB                  bool
 
 	// Public  options
 	Settings Settings
@@ -92,7 +94,9 @@ func New() (*Crawler, error) {
 // Init initializes the connection pool and the Redis client
 func (c *Crawler) Init(config ...Settings) (err error) {
 	// Generate the logging
-	if c.Verbose {
+	if c.Info {
+		c.log = lumber.NewConsoleLogger(lumber.INFO)
+	} else if c.Debug {
 		c.log = lumber.NewConsoleLogger(lumber.TRACE)
 	} else {
 		c.log = lumber.NewConsoleLogger(lumber.WARN)
@@ -141,20 +145,20 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		}
 		tr = &http.Transport{
 			MaxIdleConns:       c.MaxNumberConnections,
-			IdleConnTimeout:    30 * time.Second,
+			IdleConnTimeout:    15 * time.Second,
 			DisableCompression: true,
 			Dial:               tbDialer.Dial,
 		}
 	} else {
 		tr = &http.Transport{
 			MaxIdleConns:       c.MaxNumberConnections,
-			IdleConnTimeout:    30 * time.Second,
+			IdleConnTimeout:    15 * time.Second,
 			DisableCompression: true,
 		}
 	}
 	c.client = &http.Client{
 		Transport: tr,
-		Timeout:   time.Duration(15 * time.Second),
+		Timeout:   time.Duration(10 * time.Second),
 	}
 
 	// Setup Redis client
@@ -187,8 +191,15 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		MaxRetries:  10,
 	})
 
+	if c.EraseDB {
+		c.log.Info("Flushed database")
+		err = c.Flush()
+		if err != nil {
+			return err
+		}
+	}
 	if len(c.Settings.BaseURL) > 0 {
-		c.log.Trace("Adding %s to URLs", c.Settings.BaseURL)
+		c.log.Info("Adding %s to URLs", c.Settings.BaseURL)
 		err = c.AddSeeds([]string{c.Settings.BaseURL})
 		if err != nil {
 			return err
@@ -584,10 +595,9 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 			c.addLinkToDo(url, false)
 		}
 		if len(urls) > 0 {
-			c.log.Trace("%d) %d urls from %s", id, len(urls), randomURL)
+			c.log.Info("worker #%d: %d urls from %s [%s]", id, len(urls), randomURL, time.Since(t).String())
 		}
 		c.numberOfURLSParsed++
-		c.log.Trace("Returned results in %s", time.Since(t).String())
 		results <- nil
 	}
 }
@@ -636,6 +646,7 @@ func (c *Crawler) Crawl() (err error) {
 
 		// break if there are no links to do
 		if dbsize == 0 {
+			c.log.Info("No more work to do!")
 			break
 		}
 
@@ -668,15 +679,11 @@ func (c *Crawler) Crawl() (err error) {
 		for w := range urlsToDo {
 			go c.crawl(w, jobs, results)
 		}
-
-		// Here we send 5 `jobs` and then `close` that
-		// channel to indicate that's all the work we have.
 		for _, j := range urlsToDo {
 			jobs <- j
 		}
 		close(jobs)
 
-		// Finally we collect all the results of the work.
 		for a := 0; a < len(urlsToDo); a++ {
 			err := <-results
 			if err != nil {
@@ -689,6 +696,7 @@ func (c *Crawler) Crawl() (err error) {
 
 func (c *Crawler) stopCrawling() {
 	c.isRunning = false
+	c.printStats()
 }
 
 func round(f float64) int {
