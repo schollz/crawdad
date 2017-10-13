@@ -441,8 +441,8 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	c.log.Trace("Scraping %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		c.log.Error("Problem making request for %s: %s", url, err.Error())
-		return nil, "", nil
+		err = errors.Wrap(err, "could not make New Request for "+url)
+		return
 	}
 	if c.UserAgent != "" {
 		c.log.Trace("Setting useragent string to '%s'", c.UserAgent)
@@ -450,8 +450,8 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
-		c.log.Error("Problem doing request for %s: %s", url, err.Error())
-		return nil, "", nil
+		err = errors.Wrap(err, "could not make do request for "+url)
+		return
 	}
 	defer resp.Body.Close()
 
@@ -575,7 +575,7 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 		c.log.Trace("Got work in %s", time.Since(t).String())
 		urls, pluckedData, err := c.scrapeLinks(randomURL)
 		if err != nil {
-			results <- err
+			results <- errors.Wrap(err, "worker #"+string(id)+" failed scraping, will retry")
 			continue
 		}
 
@@ -584,18 +584,22 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 		// move url to 'done'
 		_, err = c.doing.Del(randomURL).Result()
 		if err != nil {
-			results <- err
+			results <- errors.Wrap(err, "worker #"+string(id))
 			continue
 		}
 		_, err = c.done.Set(randomURL, pluckedData, 0).Result()
 		if err != nil {
-			results <- err
+			results <- errors.Wrap(err, "worker #"+string(id))
 			continue
 		}
 
 		// add new urls to 'todo'
 		for _, url := range urls {
-			c.addLinkToDo(url, false)
+			err = c.addLinkToDo(url, false)
+			if err != nil {
+				results <- errors.Wrap(err, "worker #"+string(id))
+				continue
+			}
 		}
 		if len(urls) > 0 {
 			c.log.Info("worker #%d: %d urls from %s [%s]", id, len(urls), randomURL, time.Since(t).String())
@@ -675,6 +679,7 @@ func (c *Crawler) Crawl() (err error) {
 
 		}
 		urlsToDo = urlsToDo[:maxI+1]
+		c.log.Info("Collected %d URLs to send to workers", len(urlsToDo))
 
 		jobs := make(chan string, len(urlsToDo))
 		results := make(chan error, len(urlsToDo))
@@ -690,7 +695,7 @@ func (c *Crawler) Crawl() (err error) {
 		for a := 0; a < len(urlsToDo); a++ {
 			err := <-results
 			if err != nil {
-				return err
+				c.log.Warn(err.Error())
 			}
 		}
 	}
