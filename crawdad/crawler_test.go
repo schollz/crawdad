@@ -14,7 +14,6 @@ func TestGeneral(t *testing.T) {
 
 	crawl.RedisURL = "localhost"
 	crawl.RedisPort = "6379"
-	crawl.Verbose = false
 
 	err = crawl.Init(Settings{
 		BaseURL: "http://rpiai.com",
@@ -48,7 +47,7 @@ func TestProxy(t *testing.T) {
 	}
 	crawl.RedisURL = "localhost"
 	crawl.RedisPort = "6379"
-	crawl.Verbose = false
+
 	err = crawl.Init(Settings{
 		BaseURL: "http://rpiai.com",
 	})
@@ -77,7 +76,6 @@ func TestPlucking(t *testing.T) {
 	}
 	crawl.RedisURL = "localhost"
 	crawl.RedisPort = "6379"
-	crawl.Verbose = false
 
 	err = crawl.Init(Settings{
 		BaseURL: "https://rpiai.com",

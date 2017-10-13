@@ -76,6 +76,7 @@ type Crawler struct {
 	trash              *redis.Client
 	wg                 sync.WaitGroup
 	queue              *syncmap
+	workersWorking     bool
 }
 
 type syncmap struct {
@@ -620,9 +621,7 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 				continue
 			}
 		}
-		if len(urls) > 0 {
-			c.log.Info("worker #%d: %d urls from %s [%s]", id, len(urls), randomURL, time.Since(t).String())
-		}
+		c.log.Info("worker #%d: %d urls and %d bytes from %s [%s]", id, len(urls), len(pluckedData), randomURL, time.Since(t).String())
 		c.numberOfURLSParsed++
 		results <- nil
 	}
@@ -652,12 +651,12 @@ func (c *Crawler) AddSeeds(seeds []string) (err error) {
 func (c *Crawler) enqueue() {
 	defer c.stopCrawling()
 	for {
+		time.Sleep(100 * time.Millisecond)
 		// check if queue is full
 		c.queue.RLock()
 		queueSize := len(c.queue.Data)
 		c.queue.RUnlock()
 		if queueSize > c.MaxQueueSize {
-			time.Sleep(1 * time.Second)
 			continue
 		}
 
@@ -670,7 +669,7 @@ func (c *Crawler) enqueue() {
 		}
 
 		// break if there are no links to do
-		if dbsize == 0 {
+		if dbsize == 0 && !c.workersWorking {
 			c.log.Info("No more work to do!")
 			break
 		}
@@ -698,7 +697,9 @@ func (c *Crawler) enqueue() {
 			}
 		}
 		urlsToDo = urlsToDo[:i]
-		c.log.Info("Collected %d URLs to send to workers [%s]", len(urlsToDo), time.Since(t).String())
+		if queueSize+len(urlsToDo) > 0 {
+			c.log.Info("Collected %d URLs to send to workers [%s]", queueSize+len(urlsToDo), time.Since(t).String())
+		}
 
 		c.queue.Lock()
 		for _, url := range urlsToDo {
@@ -734,13 +735,14 @@ func (c *Crawler) Crawl() (err error) {
 		c.queue.RUnlock()
 
 		if queueSize == 0 {
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 
 		jobs := make(chan string, queueSize)
 		results := make(chan error, queueSize)
 
+		c.workersWorking = true
 		for w := 0; w < queueSize; w++ {
 			go c.crawl(w, jobs, results)
 		}
@@ -758,6 +760,7 @@ func (c *Crawler) Crawl() (err error) {
 				c.log.Warn(err.Error())
 			}
 		}
+		c.workersWorking = false
 	}
 	return
 }
