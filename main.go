@@ -73,8 +73,12 @@ func main() {
 			Usage: "number of connections to use",
 		},
 		cli.BoolFlag{
-			Name:  "verbose",
-			Usage: "turn on logging",
+			Name:  "info",
+			Usage: "turn on basic logging",
+		},
+		cli.BoolFlag{
+			Name:  "debug",
+			Usage: "turn on LOTS of logging",
 		},
 		cli.BoolFlag{
 			Name:  "proxy",
@@ -83,6 +87,10 @@ func main() {
 		cli.BoolFlag{
 			Name:  "set",
 			Usage: "set options across crawdads",
+		},
+		cli.BoolFlag{
+			Name:  "flush",
+			Usage: "flush entire database",
 		},
 		cli.StringFlag{
 			Name:  "dump",
@@ -146,7 +154,8 @@ func main() {
 		// set instance options
 		craw.MaxNumberConnections = c.GlobalInt("connections")
 		craw.MaxNumberWorkers = c.GlobalInt("workers")
-		craw.Verbose = c.GlobalBool("verbose")
+		craw.Info = c.GlobalBool("info")
+		craw.Debug = c.GlobalBool("debug")
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
 
@@ -175,6 +184,7 @@ func main() {
 		craw.RedisPort = c.GlobalString("port")
 		craw.RedisURL = c.GlobalString("server")
 		craw.MaximumNumberOfErrors = c.GlobalInt("errors")
+		craw.EraseDB = c.GlobalBool("flush")
 		if c.GlobalBool("set") {
 			err = craw.Init(options)
 		} else {
@@ -183,6 +193,7 @@ func main() {
 		if err != nil {
 			return err
 		}
+		craw.Logging()
 
 		if c.GlobalString("seed") != "" {
 			seedData, err := ioutil.ReadFile(c.GlobalString("seed"))
