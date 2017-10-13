@@ -662,7 +662,6 @@ func (c *Crawler) enqueue() {
 
 		// check if there are any links to do
 		t := time.Now()
-		c.log.Trace("Gathering URLS to send to workers")
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
 			log.Fatal(err)
@@ -680,23 +679,33 @@ func (c *Crawler) enqueue() {
 		for iter.Next() {
 			urlsToDo[i] = iter.Val()
 			c.log.Trace("Got %s", urlsToDo[i])
-			// place in 'doing'
-			_, err = c.todo.Del(urlsToDo[i]).Result()
-			if err != nil {
-				log.Fatal(errors.Wrap(err, "problem removing from todo"))
-			}
-			c.log.Trace("Deleted %s from todo", urlsToDo[i])
-			_, err = c.doing.Set(urlsToDo[i], "", 0).Result()
-			if err != nil {
-				log.Fatal(errors.Wrap(err, "problem placing in doing"))
-			}
-			c.log.Trace("Moved %s to doing", urlsToDo[i])
 			i++
 			if i == len(urlsToDo) {
 				break
 			}
 		}
 		urlsToDo = urlsToDo[:i]
+		if len(urlsToDo) == 0 {
+			continue
+		}
+
+		// move to 'doing'
+		c.log.Trace("%v", urlsToDo)
+		_, err = c.todo.Del(urlsToDo...).Result()
+		if err != nil {
+			log.Fatal(errors.Wrap(err, "problem removing from todo"))
+		}
+		pairs := make([]interface{}, len(urlsToDo)*2)
+		for i := 0; i < len(urlsToDo)*2; i += 2 {
+			pairs[i] = urlsToDo[i/2]
+			pairs[i+1] = ""
+		}
+		c.log.Trace("%v", pairs)
+		_, err = c.doing.MSet(pairs...).Result()
+		if err != nil {
+			log.Fatal(errors.Wrap(err, "problem placing in doing"))
+		}
+
 		if queueSize+len(urlsToDo) > 0 {
 			c.log.Info("Collected %d URLs to send to workers [%s]", queueSize+len(urlsToDo), time.Since(t).String())
 		}
