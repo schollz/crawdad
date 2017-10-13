@@ -57,6 +57,10 @@ func main() {
 			Value: "",
 			Usage: "set config file for a plucker (see github.com/schollz/pluck)",
 		},
+		cli.BoolFlag{
+			Name:  "require-pluck",
+			Usage: "requires that some plucked content is found",
+		},
 		cli.IntFlag{
 			Name:  "stats",
 			Value: 1,
@@ -166,6 +170,7 @@ func main() {
 			options.AllowQueryParameters = c.GlobalBool("query")
 			options.AllowHashParameters = c.GlobalBool("hash")
 			options.DontFollowLinks = c.GlobalBool("no-follow")
+			options.RequirePluck = c.GlobalBool("require-pluck")
 			if len(c.GlobalString("include")) > 0 {
 				options.KeywordsToInclude = strings.Split(strings.ToLower(c.GlobalString("include")), ",")
 			}

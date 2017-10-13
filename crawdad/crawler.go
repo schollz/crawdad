@@ -38,6 +38,7 @@ type Settings struct {
 	AllowQueryParameters bool
 	AllowHashParameters  bool
 	DontFollowLinks      bool
+	RequirePluck         bool
 }
 
 // Crawler is the crawler instance
@@ -501,6 +502,10 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 			return
 		}
 		pluckedData = plucker.ResultJSON()
+		if c.Settings.RequirePluck {
+			err = errors.New("no data plucked")
+			return
+		}
 	}
 
 	if c.Settings.DontFollowLinks {
@@ -673,7 +678,7 @@ func (c *Crawler) enqueue() {
 			break
 		}
 
-		urlsToDo := make([]string, 10)
+		urlsToDo := make([]string, c.MaxNumberWorkers)
 		i := 0
 		iter := c.todo.Scan(0, "", 0).Iterator()
 		for iter.Next() {
