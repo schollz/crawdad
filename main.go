@@ -193,6 +193,7 @@ func main() {
 		if err != nil {
 			return err
 		}
+		craw.Logging()
 
 		if c.GlobalString("seed") != "" {
 			seedData, err := ioutil.ReadFile(c.GlobalString("seed"))

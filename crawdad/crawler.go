@@ -10,7 +10,6 @@ import (
 	"math"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -93,15 +92,7 @@ func New() (*Crawler, error) {
 
 // Init initializes the connection pool and the Redis client
 func (c *Crawler) Init(config ...Settings) (err error) {
-	// Generate the logging
-	if c.Info {
-		c.log = lumber.NewConsoleLogger(lumber.INFO)
-	} else if c.Debug {
-		c.log = lumber.NewConsoleLogger(lumber.TRACE)
-	} else {
-		c.log = lumber.NewConsoleLogger(lumber.WARN)
-	}
-
+	c.Logging()
 	// connect to Redis for the settings
 	remoteSettings := redis.NewClient(&redis.Options{
 		Addr:     c.RedisURL + ":" + c.RedisPort,
@@ -206,6 +197,17 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		}
 	}
 	return
+}
+
+func (c *Crawler) Logging() {
+	// Generate the logging
+	if c.Info {
+		c.log = lumber.NewConsoleLogger(lumber.INFO)
+	} else if c.Debug {
+		c.log = lumber.NewConsoleLogger(lumber.TRACE)
+	} else {
+		c.log = lumber.NewConsoleLogger(lumber.WARN)
+	}
 }
 
 func (c *Crawler) Redo() (err error) {
@@ -440,7 +442,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		c.log.Error("Problem making request for %s: %s", url, err.Error())
-		return
+		return nil, "", nil
 	}
 	if c.UserAgent != "" {
 		c.log.Trace("Setting useragent string to '%s'", c.UserAgent)
@@ -448,7 +450,8 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	}
 	resp, err := c.client.Do(req)
 	if err != nil {
-		return
+		c.log.Error("Problem doing request for %s: %s", url, err.Error())
+		return nil, "", nil
 	}
 	defer resp.Body.Close()
 
@@ -458,8 +461,8 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 		c.trash.Set(url, "", 0).Result()
 		c.errors++
 		if c.errors > int64(c.MaximumNumberOfErrors) {
-			fmt.Println("Too many errors, exiting!")
-			os.Exit(1)
+			err = errors.New("too many errors!")
+			return
 		}
 		return
 	}
