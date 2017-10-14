@@ -111,6 +111,11 @@ func main() {
 			Value: "",
 			Usage: "set the specified `useragent`",
 		},
+		cli.StringFlag{
+			Name:  "cookie",
+			Value: "",
+			Usage: "set the specified `cookie` header",
+		},
 		cli.BoolFlag{
 			Name:  "redo",
 			Usage: "move items from 'doing' to 'todo'",
@@ -162,6 +167,7 @@ func main() {
 		craw.Debug = c.GlobalBool("debug")
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
+		craw.Cookie = c.GlobalString("cookie")
 
 		// set public options
 		var options crawdad.Settings

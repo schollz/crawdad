@@ -15,7 +15,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/BurntSushi/toml"
 	"github.com/schollz/pluck/pluck"
 	pb "gopkg.in/cheggaaa/pb.v1"
 
@@ -54,6 +53,7 @@ type Crawler struct {
 	Info                     bool
 	UseProxy                 bool
 	UserAgent                string
+	Cookie                   string
 	EraseDB                  bool
 	MaxQueueSize             int
 
@@ -463,6 +463,11 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 		c.log.Trace("Setting useragent string to '%s'", c.UserAgent)
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
+	if c.Cookie != "" {
+		c.log.Trace("Setting cookie")
+		req.Header.Set("Cookie", c.Cookie)
+	}
+
 	resp, err := c.client.Do(req)
 	if err != nil {
 		err = errors.Wrap(err, "could not make do request for "+url)
@@ -503,7 +508,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 		}
 		pluckedData = plucker.ResultJSON()
 		if c.Settings.RequirePluck {
-			err = errors.New("no data plucked from " +url)
+			err = errors.New("no data plucked from " + url)
 			return
 		}
 	}
@@ -683,7 +688,6 @@ func (c *Crawler) enqueue() {
 		iter := c.todo.Scan(0, "", 0).Iterator()
 		for iter.Next() {
 			urlsToDo[i] = iter.Val()
-			c.log.Trace("Got %s", urlsToDo[i])
 			i++
 			if i == len(urlsToDo) {
 				break
@@ -695,7 +699,6 @@ func (c *Crawler) enqueue() {
 		}
 
 		// move to 'doing'
-		c.log.Trace("%v", urlsToDo)
 		_, err = c.todo.Del(urlsToDo...).Result()
 		if err != nil {
 			log.Fatal(errors.Wrap(err, "problem removing from todo"))
@@ -705,7 +708,7 @@ func (c *Crawler) enqueue() {
 			pairs[i] = urlsToDo[i/2]
 			pairs[i+1] = ""
 		}
-		c.log.Trace("%v", pairs)
+
 		_, err = c.doing.MSet(pairs...).Result()
 		if err != nil {
 			log.Fatal(errors.Wrap(err, "problem placing in doing"))
@@ -728,12 +731,8 @@ func (c *Crawler) enqueue() {
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
 	fmt.Printf("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
-	buf := new(bytes.Buffer)
-	if err := toml.NewEncoder(buf).Encode(c.Settings); err != nil {
-		return err
-	}
-	fmt.Println("Settings:")
-	fmt.Println(buf.String())
+	b, _ := json.MarshalIndent(c, "", " ")
+	fmt.Printf("Settings:\n%s\n\n", b)
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0
 	c.isRunning = true
@@ -757,7 +756,7 @@ func (c *Crawler) Crawl() (err error) {
 		results := make(chan error, queueSize)
 
 		c.workersWorking = true
-		for w := 0; w < queueSize; w++ {
+		for w := 0; w < c.MaxNumberWorkers; w++ {
 			go c.crawl(w, jobs, results)
 		}
 		c.queue.Lock()
