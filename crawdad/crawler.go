@@ -507,7 +507,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 			return
 		}
 		pluckedData = plucker.ResultJSON()
-		if c.Settings.RequirePluck {
+		if c.Settings.RequirePluck && len(pluckedData) == 0 {
 			err = errors.New("no data plucked from " + url)
 			return
 		}
@@ -759,10 +759,16 @@ func (c *Crawler) Crawl() (err error) {
 		for w := 0; w < c.MaxNumberWorkers; w++ {
 			go c.crawl(w, jobs, results)
 		}
+
+		num := 0
 		c.queue.Lock()
 		for j := range c.queue.Data {
 			delete(c.queue.Data, j)
 			jobs <- j
+			num++
+			if num == c.MaxNumberWorkers {
+				break
+			}
 		}
 		c.queue.Unlock()
 		close(jobs)
