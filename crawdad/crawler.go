@@ -503,7 +503,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 		}
 		pluckedData = plucker.ResultJSON()
 		if c.Settings.RequirePluck {
-			err = errors.New("no data plucked")
+			err = errors.New("no data plucked from " +url)
 			return
 		}
 	}
