@@ -763,6 +763,7 @@ func (c *Crawler) Crawl() (err error) {
 		num := 0
 		c.queue.Lock()
 		for j := range c.queue.Data {
+			c.log.Trace("Adding job %s", j)
 			delete(c.queue.Data, j)
 			jobs <- j
 			num++
@@ -773,7 +774,7 @@ func (c *Crawler) Crawl() (err error) {
 		c.queue.Unlock()
 		close(jobs)
 
-		for a := 0; a < queueSize; a++ {
+		for a := 0; a < c.MaxNumberWorkers; a++ {
 			err := <-results
 			if err != nil {
 				c.log.Warn(err.Error())
