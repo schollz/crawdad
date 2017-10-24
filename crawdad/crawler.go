@@ -206,7 +206,7 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 	}
 	if len(c.Settings.BaseURL) > 0 {
 		c.log.Info("Adding %s to URLs", c.Settings.BaseURL)
-		err = c.AddSeeds([]string{c.Settings.BaseURL})
+		err = c.addLinkToDo(c.Settings.BaseURL, true)
 		if err != nil {
 			return err
 		}
@@ -637,7 +637,7 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 	}
 }
 
-func (c *Crawler) AddSeeds(seeds []string) (err error) {
+func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 	// add beginning link
 	var bar *pb.ProgressBar
 	if len(seeds) > 100 {
@@ -645,11 +645,15 @@ func (c *Crawler) AddSeeds(seeds []string) (err error) {
 		bar = pb.StartNew(len(seeds))
 		defer bar.Finish()
 	}
+	toForce := false
+	if len(force) > 0 {
+		toForce = force[0]
+	}
 	for _, seed := range seeds {
 		if len(seeds) > 100 {
 			bar.Increment()
 		}
-		err = c.addLinkToDo(seed, true)
+		err = c.addLinkToDo(seed, toForce)
 		if err != nil {
 			return
 		}
