@@ -479,7 +479,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 		c.doing.Del(url).Result()
 		c.todo.Del(url).Result()
 		c.trash.Set(url, "", 0).Result()
-		if resp.StatusCode != 404 {
+		if resp.StatusCode == 403 {
 			c.errors++
 			if c.errors > int64(c.MaximumNumberOfErrors) {
 				err = errors.New(fmt.Sprintf("Got code %d for %s", resp.StatusCode, url))
