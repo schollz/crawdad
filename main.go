@@ -164,7 +164,9 @@ func main() {
 		craw.MaxNumberConnections = c.GlobalInt("connections")
 		craw.MaxNumberWorkers = c.GlobalInt("workers")
 		craw.Info = c.GlobalBool("info")
-		craw.Debug = c.GlobalBool("debug")
+		if !c.GlobalBool("debug") {
+			crawdad.SetLogLevel("info")
+		}
 		craw.TimeIntervalToPrintStats = c.GlobalInt("stats")
 		craw.UserAgent = c.GlobalString("useragent")
 		craw.Cookie = c.GlobalString("cookie")
@@ -204,7 +206,6 @@ func main() {
 		if err != nil {
 			return err
 		}
-		craw.Logging()
 
 		if c.GlobalString("seed") != "" {
 			seedData, err := ioutil.ReadFile(c.GlobalString("seed"))

@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"net/http"
 	"net/url"
@@ -20,6 +19,7 @@ import (
 
 	"golang.org/x/net/proxy"
 
+	log "github.com/cihub/seelog"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
 	"github.com/goware/urlx"
@@ -107,7 +107,6 @@ func New() (*Crawler, error) {
 
 // Init initializes the connection pool and the Redis client
 func (c *Crawler) Init(config ...Settings) (err error) {
-	c.Logging()
 	// connect to Redis for the settings
 	remoteSettings := redis.NewClient(&redis.Options{
 		Addr:     c.RedisURL + ":" + c.RedisPort,
@@ -125,7 +124,7 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		if err != nil {
 			return err
 		}
-		c.log.Info("saved settings: %v", config[0])
+		log.Info("saved settings: %v", config[0])
 	}
 	// load the configuration from Redis
 	var val string
@@ -134,19 +133,19 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		return errors.New(fmt.Sprintf("You need to set the base settings. Use\n\n\tcrawdad -s %s -p %s -set -url http://www.URL.com\n\n", c.RedisURL, c.RedisPort))
 	}
 	err = json.Unmarshal([]byte(val), &c.Settings)
-	c.log.Info("loaded settings: %v", c.Settings)
+	log.Infof("loaded settings: %v", c.Settings)
 
 	// Generate the connection pool
 	var tr *http.Transport
 	if c.UseProxy {
 		tbProxyURL, err := url.Parse("socks5://127.0.0.1:9050")
 		if err != nil {
-			c.log.Fatal("Failed to parse proxy URL: %v\n", err)
+			log.Errorf("Failed to parse proxy URL: %v\n", err)
 			return err
 		}
 		tbDialer, err := proxy.FromURL(tbProxyURL, proxy.Direct)
 		if err != nil {
-			c.log.Fatal("Failed to obtain proxy dialer: %v\n", err)
+			log.Errorf("Failed to obtain proxy dialer: %v\n", err)
 			return err
 		}
 		tr = &http.Transport{
@@ -198,31 +197,20 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 	})
 
 	if c.EraseDB {
-		c.log.Info("Flushed database")
+		log.Info("Flushed database")
 		err = c.Flush()
 		if err != nil {
 			return err
 		}
 	}
 	if len(c.Settings.BaseURL) > 0 {
-		c.log.Info("Adding %s to URLs", c.Settings.BaseURL)
+		log.Info("Adding %s to URLs", c.Settings.BaseURL)
 		err = c.addLinkToDo(c.Settings.BaseURL, true)
 		if err != nil {
 			return err
 		}
 	}
 	return
-}
-
-func (c *Crawler) Logging() {
-	// Generate the logging
-	if c.Info {
-		c.log = lumber.NewConsoleLogger(lumber.INFO)
-	} else if c.Debug {
-		c.log = lumber.NewConsoleLogger(lumber.TRACE)
-	} else {
-		c.log = lumber.NewConsoleLogger(lumber.WARN)
-	}
 }
 
 func (c *Crawler) Redo() (err error) {
@@ -232,14 +220,14 @@ func (c *Crawler) Redo() (err error) {
 		return
 	}
 	for _, key := range keys {
-		c.log.Trace("Moving %s back to todo list", key)
+		log.Debugf("Moving %s back to todo list", key)
 		_, err = c.doing.Del(key).Result()
 		if err != nil {
-			c.log.Error(err.Error())
+			log.Error(err.Error())
 		}
 		_, err = c.todo.Set(key, "", 0).Result()
 		if err != nil {
-			c.log.Error(err.Error())
+			log.Error(err.Error())
 		}
 	}
 
@@ -248,14 +236,14 @@ func (c *Crawler) Redo() (err error) {
 		return
 	}
 	for _, key := range keys {
-		c.log.Trace("Moving %s back to todo list", key)
+		log.Debugf("Moving %s back to todo list", key)
 		_, err = c.trash.Del(key).Result()
 		if err != nil {
-			c.log.Error(err.Error())
+			log.Error(err.Error())
 		}
 		_, err = c.todo.Set(key, "", 0).Result()
 		if err != nil {
-			c.log.Error(err.Error())
+			log.Error(err.Error())
 		}
 	}
 
@@ -263,7 +251,7 @@ func (c *Crawler) Redo() (err error) {
 }
 
 func (c *Crawler) DumpMap() (m map[string]string, err error) {
-	fmt.Println("Dumping...")
+	log.Info("Dumping...")
 	totalSize := int64(0)
 	var tempSize int64
 	tempSize, _ = c.done.DbSize().Result()
@@ -284,7 +272,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	}
 	keys = keys[:i]
 	if err = iter.Err(); err != nil {
-		c.log.Error("Problem getting done")
+		log.Error("Problem getting done")
 		return
 	}
 	m = make(map[string]string)
@@ -301,7 +289,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 }
 
 func (c *Crawler) Dump() (allKeys []string, err error) {
-	fmt.Println("Dumping...")
+	log.Info("Dumping...")
 	allKeys = make([]string, 0)
 	var keySize int64
 	var keys []string
@@ -329,7 +317,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 		i++
 	}
 	if err := iter.Err(); err != nil {
-		c.log.Error("Problem getting todo")
+		log.Error("Problem getting todo")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys[:i]...)
@@ -344,7 +332,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 		i++
 	}
 	if err := iter.Err(); err != nil {
-		c.log.Error("Problem getting doing")
+		log.Error("Problem getting doing")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys[:i]...)
@@ -359,7 +347,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 		i++
 	}
 	if err := iter.Err(); err != nil {
-		c.log.Error("Problem getting done")
+		log.Error("Problem getting done")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys[:i]...)
@@ -374,7 +362,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 		i++
 	}
 	if err := iter.Err(); err != nil {
-		c.log.Error("Problem getting trash")
+		log.Error("Problem getting trash")
 		return nil, err
 	}
 	allKeys = append(allKeys, keys[:i]...)
@@ -384,11 +372,11 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 func (c *Crawler) getIP() (ip string, err error) {
 	req, err := http.NewRequest("GET", "http://icanhazip.com", nil)
 	if err != nil {
-		c.log.Error("Problem making request")
+		log.Error("Problem making request")
 		return
 	}
 	if c.UserAgent != "" {
-		c.log.Trace("Setting useragent string to '%s'", c.UserAgent)
+		log.Debugf("Setting useragent string to '%s'", c.UserAgent)
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
 	resp, err := c.client.Do(req)
@@ -453,18 +441,18 @@ func (c *Crawler) Flush() (err error) {
 }
 
 func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData string, err error) {
-	c.log.Trace("Scraping %s", url)
+	log.Debugf("Scraping %s", url)
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		err = errors.Wrap(err, "could not make New Request for "+url)
 		return
 	}
 	if c.UserAgent != "" {
-		c.log.Trace("Setting useragent string to '%s'", c.UserAgent)
+		log.Debugf("Setting useragent string to '%s'", c.UserAgent)
 		req.Header.Set("User-Agent", c.UserAgent)
 	}
 	if c.Cookie != "" {
-		c.log.Trace("Setting cookie")
+		log.Debugf("Setting cookie")
 		req.Header.Set("Cookie", c.Cookie)
 	}
 
@@ -526,7 +514,6 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	linkCandidates = make([]string, len(links))
 	linkCandidatesI := 0
 	for _, link := range links {
-		c.log.Trace(link)
 		// disallow query parameters, if not flagged
 		if strings.Contains(link, "?") && !c.Settings.AllowQueryParameters {
 			link = strings.Split(link, "?")[0]
@@ -544,10 +531,11 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 			}
 			link = c.Settings.BaseURL + link
 		}
+		// log.Debugf("got '%s' from %s", link, url)
 
 		// skip links that have a different Base URL
 		if !strings.Contains(link, c.Settings.BaseURL) {
-			// c.log.Trace("Skipping %s because it has a different base URL", link)
+			// log.Debugf("Skipping %s because it has a different base URL", link)
 			continue
 		}
 
@@ -563,7 +551,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 		for _, keyword := range c.Settings.KeywordsToExclude {
 			if strings.Contains(normalizedLink, keyword) {
 				foundExcludedKeyword = true
-				// c.log.Trace("Skipping %s because contains %s", link, keyword)
+				// log.Debugf("Skipping %s because contains %s", link, keyword)
 				break
 			}
 		}
@@ -595,6 +583,7 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 
 func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 	for randomURL := range jobs {
+		log.Debugf("%d processing %s", id, randomURL)
 		// time the link getting process
 		urls, pluckedData, err := c.scrapeLinks(randomURL)
 		if err != nil {
@@ -602,11 +591,11 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 			// move url to back to 'todo'
 			_, err2 := c.doing.Del(randomURL).Result()
 			if err2 != nil {
-				c.log.Error(err2.Error())
+				log.Error(err2.Error())
 			}
 			_, err2 = c.todo.Set(randomURL, "", 0).Result()
 			if err2 != nil {
-				c.log.Error(err2.Error())
+				log.Error(err2.Error())
 			}
 			continue
 		}
@@ -633,7 +622,7 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 				continue
 			}
 		}
-		c.log.Info("worker #%d: %d urls and %d bytes from %s [%s]", id, len(urls), len(pluckedData), randomURL, time.Since(t).String())
+		log.Debugf("worker #%d: %d urls and %d bytes from %s [%s]", id, len(urls), len(pluckedData), randomURL, time.Since(t).String())
 		c.numberOfURLSParsed++
 		results <- nil
 	}
@@ -643,7 +632,7 @@ func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 	// add beginning link
 	var bar *pb.ProgressBar
 	if len(seeds) > 100 {
-		fmt.Println("Adding seeds...")
+		log.Info("Adding seeds...")
 		bar = pb.StartNew(len(seeds))
 		defer bar.Finish()
 	}
@@ -660,19 +649,23 @@ func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 			return
 		}
 	}
-	c.log.Info("Added %d seed links", len(seeds))
+	log.Info("Added %d seed links", len(seeds))
 	return
 }
 
 func (c *Crawler) enqueue() {
 	defer c.stopCrawling()
 	for {
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(1 * time.Second)
+
 		// check if queue is full
 		c.queue.RLock()
 		queueSize := len(c.queue.Data)
 		c.queue.RUnlock()
-		if queueSize > c.MaxQueueSize {
+
+		currentDoing, _ := c.doing.DbSize().Result()
+		if int(currentDoing) > c.MaxQueueSize {
+			time.Sleep(10 * time.Second)
 			continue
 		}
 
@@ -680,12 +673,12 @@ func (c *Crawler) enqueue() {
 		t := time.Now()
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
-			log.Fatal(err)
+			log.Error(err)
 		}
 
 		// break if there are no links to do
 		if dbsize == 0 && !c.workersWorking {
-			c.log.Info("No more work to do!")
+			log.Info("No more work to do!")
 			break
 		}
 
@@ -707,7 +700,7 @@ func (c *Crawler) enqueue() {
 		// move to 'doing'
 		_, err = c.todo.Del(urlsToDo...).Result()
 		if err != nil {
-			log.Fatal(errors.Wrap(err, "problem removing from todo"))
+			log.Error(errors.Wrap(err, "problem removing from todo"))
 		}
 		pairs := make([]interface{}, len(urlsToDo)*2)
 		for i := 0; i < len(urlsToDo)*2; i += 2 {
@@ -717,11 +710,11 @@ func (c *Crawler) enqueue() {
 
 		_, err = c.doing.MSet(pairs...).Result()
 		if err != nil {
-			log.Fatal(errors.Wrap(err, "problem placing in doing"))
+			log.Error(errors.Wrap(err, "problem placing in doing"))
 		}
 
 		if queueSize+len(urlsToDo) > 0 {
-			c.log.Info("Collected %d URLs to send to workers [%s]", queueSize+len(urlsToDo), time.Since(t).String())
+			log.Tracef("collected %d URLs to send to workers [%s]", queueSize+len(urlsToDo), time.Since(t).String())
 		}
 
 		c.queue.Lock()
@@ -736,9 +729,10 @@ func (c *Crawler) enqueue() {
 // Crawl initiates the pool of connections and begins
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
-	fmt.Printf("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
+	defer log.Flush()
+	log.Infof("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
 	b, _ := json.MarshalIndent(c, "", " ")
-	fmt.Printf("Settings:\n%s\n\n", b)
+	log.Infof("Settings:\n%s\n\n", b)
 	c.programTime = time.Now()
 	c.numberOfURLSParsed = 0
 	c.isRunning = true
@@ -754,40 +748,43 @@ func (c *Crawler) Crawl() (err error) {
 		c.queue.RUnlock()
 
 		if queueSize == 0 {
-			time.Sleep(10 * time.Millisecond)
 			continue
 		}
 
+		c.workersWorking = true
+
 		jobs := make(chan string, queueSize)
 		results := make(chan error, queueSize)
-
-		c.workersWorking = true
-		for w := 0; w < c.MaxNumberWorkers; w++ {
+		numberOfWorkers := c.MaxNumberWorkers
+		if queueSize < numberOfWorkers {
+			numberOfWorkers = queueSize/2 + 1
+		}
+		for w := 0; w < numberOfWorkers; w++ {
 			go c.crawl(w, jobs, results)
 		}
 
-		num := 0
 		c.queue.Lock()
+		numberOfJobs := len(c.queue.Data)
 		for j := range c.queue.Data {
-			c.log.Trace("Adding job %s", j)
+			log.Debugf("Adding job %s", j)
 			delete(c.queue.Data, j)
 			jobs <- j
-			num++
-			if num == c.MaxNumberWorkers {
-				break
-			}
 		}
 		c.queue.Unlock()
 		close(jobs)
 
-		for a := 0; a < c.MaxNumberWorkers; a++ {
+		log.Debug("waiting for results")
+		for a := 0; a < numberOfJobs; a++ {
 			err := <-results
 			if err != nil {
-				c.log.Warn(err.Error())
+				log.Warn(err.Error())
 			}
+			log.Debugf("got result %d", a)
 		}
 		c.workersWorking = false
 	}
+	c.printStats()
+	log.Info("finished crawling")
 	return
 }
 
@@ -826,14 +823,12 @@ func (c *Crawler) updateListCounts() (err error) {
 
 func (c *Crawler) contantlyPrintStats() {
 	c.isRunning = true
-	fmt.Println(`                                           parsed speed   todo     done     doing   trash      errors
-                                                (urls/min)`)
 	for {
 		time.Sleep(time.Duration(int32(c.TimeIntervalToPrintStats)) * time.Second)
 		c.updateListCounts()
 		c.printStats()
 		if !c.isRunning {
-			fmt.Println("Finished")
+			log.Info("Finished")
 			return
 		}
 	}
@@ -846,7 +841,7 @@ func (c *Crawler) printStats() {
 	if len(printURL) > 17 {
 		printURL = printURL[:17]
 	}
-	log.Printf("[%17s] %9s %3d %8s %8s %8s %8s %8s\n",
+	log.Infof("[%s] parsed:%s, rate:%d, todo:%s, done:%s, doing:%s, trash:%s, errors:%s\n",
 		printURL,
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
