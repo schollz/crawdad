@@ -679,7 +679,7 @@ func (c *Crawler) Crawl() (err error) {
 
 		currentDoing, _ := c.doing.DbSize().Result()
 		if int(currentDoing) > c.MaxQueueSize {
-			time.Sleep(10 * time.Second)
+			time.Sleep(3 * time.Second)
 			continue
 		}
 
@@ -691,7 +691,7 @@ func (c *Crawler) Crawl() (err error) {
 
 		// break if there are no links to do
 		if dbsize == 0 {
-			time.Sleep(10 * time.Second)
+			time.Sleep(3 * time.Second)
 			if haveResults {
 				haveResults = false
 				continue
