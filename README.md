@@ -146,8 +146,8 @@ There are lots of other options:
 To run tests
 
 ```
-$ docker run -d -v `pwd`:/data -p 6379:6379 redis
-$ cd crawdad && go test -v -cover
+$ docker run -d -v `pwd`:/data -p 6377:6379 redis
+$ cd src && go test -v -cover
 ```
 
 # License

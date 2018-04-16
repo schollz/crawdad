@@ -3,6 +3,8 @@ package crawdad
 import (
 	"fmt"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGeneral(t *testing.T) {
@@ -13,7 +15,7 @@ func TestGeneral(t *testing.T) {
 	}
 
 	crawl.RedisURL = "localhost"
-	crawl.RedisPort = "6379"
+	crawl.RedisPort = "6377"
 
 	err = crawl.Init(Settings{
 		BaseURL: "http://rpiai.com",
@@ -23,59 +25,40 @@ func TestGeneral(t *testing.T) {
 	}
 
 	urls, _, err := crawl.scrapeLinks("http://rpiai.com")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(urls) < 15 {
-		t.Error("%v", urls)
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, true, len(urls) > 15)
 
 	err = crawl.Crawl()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 	err = crawl.Flush()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 }
 
 func TestProxy(t *testing.T) {
 	crawl, err := New()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 	crawl.RedisURL = "localhost"
-	crawl.RedisPort = "6379"
+	crawl.RedisPort = "6377"
 
 	err = crawl.Init(Settings{
 		BaseURL: "http://rpiai.com",
 	})
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 	ip, err := crawl.getIP()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
+
 	fmt.Println(ip)
 	urls, _, err := crawl.scrapeLinks("http://rpiai.com")
-	if err != nil {
-		t.Error(err)
-	}
-	if len(urls) < 15 {
-		t.Error("%v", urls)
-	}
+	assert.Nil(t, err)
+	assert.Equal(t, true, len(urls) > 15)
 }
 
 func TestPlucking(t *testing.T) {
 
 	crawl, err := New()
-	if err != nil {
-		t.Error(err)
-	}
+	assert.Nil(t, err)
 	crawl.RedisURL = "localhost"
-	crawl.RedisPort = "6379"
+	crawl.RedisPort = "6377"
 
 	err = crawl.Init(Settings{
 		BaseURL: "https://rpiai.com",
