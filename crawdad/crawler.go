@@ -581,13 +581,15 @@ func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData 
 	return
 }
 
-func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
-	for randomURL := range jobs {
+func (c *Crawler) crawl(id int, jobs chan string) {
+	log.Debugf("initiated crawler %d", id)
+	for {
+		randomURL := <-jobs
 		log.Debugf("%d processing %s", id, randomURL)
 		// time the link getting process
 		urls, pluckedData, err := c.scrapeLinks(randomURL)
 		if err != nil {
-			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id)+" failed scraping, will retry")
+			log.Warn(errors.Wrap(err, "worker #"+strconv.Itoa(id)+" failed scraping, will retry"))
 			// move url to back to 'todo'
 			_, err2 := c.doing.Del(randomURL).Result()
 			if err2 != nil {
@@ -605,12 +607,12 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 		// move url to 'done'
 		_, err = c.doing.Del(randomURL).Result()
 		if err != nil {
-			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id))
+			log.Warn(errors.Wrap(err, "worker #"+strconv.Itoa(id)))
 			continue
 		}
 		_, err = c.done.Set(randomURL, pluckedData, 0).Result()
 		if err != nil {
-			results <- errors.Wrap(err, "worker #"+strconv.Itoa(id))
+			log.Warn(errors.Wrap(err, "worker #"+strconv.Itoa(id)))
 			continue
 		}
 
@@ -618,14 +620,14 @@ func (c *Crawler) crawl(id int, jobs <-chan string, results chan<- error) {
 		for _, url := range urls {
 			err = c.addLinkToDo(url, false)
 			if err != nil {
-				results <- errors.Wrap(err, "worker #"+string(id))
+				log.Warn(errors.Wrap(err, "worker #"+string(id)))
 				continue
 			}
 		}
 		log.Debugf("worker #%d: %d urls and %d bytes from %s [%s]", id, len(urls), len(pluckedData), randomURL, time.Since(t).String())
 		c.numberOfURLSParsed++
-		results <- nil
 	}
+	log.Infof("%d exiting", id)
 }
 
 func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
@@ -653,15 +655,27 @@ func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 	return
 }
 
-func (c *Crawler) enqueue() {
+// Crawl initiates the pool of connections and begins
+// scraping URLs according to the todo list
+func (c *Crawler) Crawl() (err error) {
+	defer log.Flush()
 	defer c.stopCrawling()
+	log.Infof("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
+	b, _ := json.MarshalIndent(c, "", " ")
+	log.Infof("Settings:\n%s\n\n", b)
+	c.programTime = time.Now()
+	c.numberOfURLSParsed = 0
+	c.isRunning = true
+	go c.contantlyPrintStats()
+
+	var jobs chan string = make(chan string)
+	for w := 0; w < c.MaxNumberWorkers; w++ {
+		go c.crawl(w, jobs)
+	}
+
+	haveResults := true
 	for {
 		time.Sleep(1 * time.Second)
-
-		// check if queue is full
-		c.queue.RLock()
-		queueSize := len(c.queue.Data)
-		c.queue.RUnlock()
 
 		currentDoing, _ := c.doing.DbSize().Result()
 		if int(currentDoing) > c.MaxQueueSize {
@@ -670,16 +684,23 @@ func (c *Crawler) enqueue() {
 		}
 
 		// check if there are any links to do
-		t := time.Now()
 		dbsize, err := c.todo.DbSize().Result()
 		if err != nil {
 			log.Error(err)
 		}
 
 		// break if there are no links to do
-		if dbsize == 0 && !c.workersWorking {
+		if dbsize == 0 {
+			time.Sleep(10 * time.Second)
+			if haveResults {
+				haveResults = false
+				continue
+			}
 			log.Info("No more work to do!")
 			break
+		} else {
+			log.Debugf("found %d urls todo", dbsize)
+			haveResults = true
 		}
 
 		urlsToDo := make([]string, c.MaxNumberWorkers)
@@ -694,10 +715,12 @@ func (c *Crawler) enqueue() {
 		}
 		urlsToDo = urlsToDo[:i]
 		if len(urlsToDo) == 0 {
+			log.Debug("nevermind, no urls todo")
 			continue
 		}
 
 		// move to 'doing'
+		log.Debugf("moving %d urls from todo to doing", len(urlsToDo))
 		_, err = c.todo.Del(urlsToDo...).Result()
 		if err != nil {
 			log.Error(errors.Wrap(err, "problem removing from todo"))
@@ -713,75 +736,10 @@ func (c *Crawler) enqueue() {
 			log.Error(errors.Wrap(err, "problem placing in doing"))
 		}
 
-		if queueSize+len(urlsToDo) > 0 {
-			log.Tracef("collected %d URLs to send to workers [%s]", queueSize+len(urlsToDo), time.Since(t).String())
-		}
-
-		c.queue.Lock()
-		for _, url := range urlsToDo {
-			c.queue.Data[url] = struct{}{}
-		}
-		c.queue.Unlock()
-
-	}
-}
-
-// Crawl initiates the pool of connections and begins
-// scraping URLs according to the todo list
-func (c *Crawler) Crawl() (err error) {
-	defer log.Flush()
-	log.Infof("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
-	b, _ := json.MarshalIndent(c, "", " ")
-	log.Infof("Settings:\n%s\n\n", b)
-	c.programTime = time.Now()
-	c.numberOfURLSParsed = 0
-	c.isRunning = true
-	go c.contantlyPrintStats()
-	go c.enqueue()
-	for {
-		if !c.isRunning {
-			break
-		}
-
-		c.queue.RLock()
-		queueSize := len(c.queue.Data)
-		c.queue.RUnlock()
-
-		if queueSize == 0 {
-			continue
-		}
-
-		c.workersWorking = true
-
-		jobs := make(chan string, queueSize)
-		results := make(chan error, queueSize)
-		numberOfWorkers := c.MaxNumberWorkers
-		if queueSize < numberOfWorkers {
-			numberOfWorkers = queueSize/2 + 1
-		}
-		for w := 0; w < numberOfWorkers; w++ {
-			go c.crawl(w, jobs, results)
-		}
-
-		c.queue.Lock()
-		numberOfJobs := len(c.queue.Data)
-		for j := range c.queue.Data {
+		for _, j := range urlsToDo {
 			log.Debugf("Adding job %s", j)
-			delete(c.queue.Data, j)
 			jobs <- j
 		}
-		c.queue.Unlock()
-		close(jobs)
-
-		log.Debug("waiting for results")
-		for a := 0; a < numberOfJobs; a++ {
-			err := <-results
-			if err != nil {
-				log.Warn(err.Error())
-			}
-			log.Debugf("got result %d", a)
-		}
-		c.workersWorking = false
 	}
 	c.printStats()
 	log.Info("finished crawling")
@@ -841,7 +799,7 @@ func (c *Crawler) printStats() {
 	if len(printURL) > 17 {
 		printURL = printURL[:17]
 	}
-	log.Infof("[%s] parsed:%s, rate:%d, todo:%s, done:%s, doing:%s, trash:%s, errors:%s\n",
+	log.Infof("[%s] parsed:%s, rate:%d, todo:%s, done:%s, doing:%s, trash:%s, errors:%s",
 		printURL,
 		humanize.Comma(int64(c.numberOfURLSParsed)),
 		URLSPerSecond,
