@@ -442,9 +442,12 @@ func (c *Crawler) Flush() (err error) {
 
 func (c *Crawler) scrapeLinks(url string) (linkCandidates []string, pluckedData string, err error) {
 	log.Debugf("Scraping %s", url)
+	if len(url) == 0 {
+		return
+	}
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
-		err = errors.Wrap(err, "could not make New Request for "+url)
+		err = errors.Wrap(err, "could not make New Request for '"+url+"'")
 		return
 	}
 	if c.UserAgent != "" {
@@ -705,9 +708,11 @@ func (c *Crawler) Crawl() (err error) {
 
 		urlsToDo := make([]string, c.MaxNumberWorkers)
 		i := 0
+		log.Debug("scanning through urls")
 		iter := c.todo.Scan(0, "", 0).Iterator()
 		for iter.Next() {
 			urlsToDo[i] = iter.Val()
+			log.Debugf("added url %s", urlsToDo[i])
 			i++
 			if i == len(urlsToDo) {
 				break
