@@ -706,19 +706,21 @@ func (c *Crawler) Crawl() (err error) {
 			haveResults = true
 		}
 
-		urlsToDo := make([]string, c.MaxNumberWorkers)
-		i := 0
-		log.Debug("scanning through urls")
-		iter := c.todo.Scan(0, "", 0).Iterator()
-		for iter.Next() {
-			urlsToDo[i] = iter.Val()
-			log.Debugf("added url %s", urlsToDo[i])
-			i++
-			if i == len(urlsToDo) {
-				break
+		urlsToDoMap := make(map[string]struct{})
+		for i := 0; i < c.MaxNumberWorkers; i++ {
+			key, errRandom := c.todo.RandomKey().Result()
+			if errRandom != nil {
+				log.Warn(errRandom)
 			}
+			urlsToDoMap[key] = struct{}{}
+			log.Debugf("adding %s to urls to do", key)
 		}
-		urlsToDo = urlsToDo[:i]
+		urlsToDo := make([]string, len(urlsToDoMap))
+		i := 0
+		for key := range urlsToDoMap {
+			urlsToDo[i] = key
+			i++
+		}
 		if len(urlsToDo) == 0 {
 			log.Debug("nevermind, no urls todo")
 			continue
