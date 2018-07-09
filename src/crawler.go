@@ -204,7 +204,7 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		}
 	}
 	if len(c.Settings.BaseURL) > 0 {
-		log.Info("Adding %s to URLs", c.Settings.BaseURL)
+		log.Infof("Adding %s to URLs", c.Settings.BaseURL)
 		err = c.addLinkToDo(c.Settings.BaseURL, true)
 		if err != nil {
 			return err
@@ -654,7 +654,7 @@ func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 			return
 		}
 	}
-	log.Info("Added %d seed links", len(seeds))
+	log.Infof("Added %d seed links", len(seeds))
 	return
 }
 
