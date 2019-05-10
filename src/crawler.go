@@ -14,19 +14,20 @@ import (
 	"sync"
 	"time"
 
-	"github.com/schollz/pluck/pluck"
-	pb "gopkg.in/cheggaaa/pb.v1"
-
-	"golang.org/x/net/proxy"
-
-	log "github.com/cihub/seelog"
 	humanize "github.com/dustin/go-humanize"
 	"github.com/go-redis/redis"
 	"github.com/goware/urlx"
-	"github.com/jcelliott/lumber"
 	"github.com/pkg/errors"
 	"github.com/schollz/collectlinks"
+	log "github.com/schollz/logger"
+	"github.com/schollz/pluck/pluck"
+	"github.com/schollz/progressbar/v2"
+	"golang.org/x/net/proxy"
 )
+
+func SetLogLevel(s string) {
+	log.SetLevel(s)
+}
 
 // Settings is the configuration across all instances
 type Settings struct {
@@ -61,7 +62,6 @@ type Crawler struct {
 	Settings Settings
 
 	// Private instance parameters
-	log                *lumber.ConsoleLogger
 	programTime        time.Time
 	numberOfURLSParsed int
 	numTrash           int64
@@ -124,7 +124,7 @@ func (c *Crawler) Init(config ...Settings) (err error) {
 		if err != nil {
 			return err
 		}
-		log.Info("saved settings: %v", config[0])
+		log.Infof("saved settings: %v", config[0])
 	}
 	// load the configuration from Redis
 	var val string
@@ -256,8 +256,10 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	var tempSize int64
 	tempSize, _ = c.done.DbSize().Result()
 	totalSize = tempSize * 2
-	bar := pb.StartNew(int(totalSize))
-	defer bar.Finish()
+	bar := progressbar.NewOptions64(totalSize,
+		progressbar.OptionShowIts(),
+		progressbar.OptionShowCount(),
+	)
 
 	var keySize int64
 	var keys []string
@@ -266,7 +268,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	i := 0
 	iter := c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
-		bar.Increment()
+		bar.Add(1)
 		keys[i] = iter.Val()
 		i++
 	}
@@ -277,7 +279,7 @@ func (c *Crawler) DumpMap() (m map[string]string, err error) {
 	}
 	m = make(map[string]string)
 	for _, key := range keys {
-		bar.Increment()
+		bar.Add(1)
 		var val string
 		val, err = c.done.Get(key).Result()
 		if err != nil {
@@ -304,15 +306,17 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	totalSize += tempSize
 	tempSize, _ = c.trash.DbSize().Result()
 	totalSize += tempSize
-	bar := pb.StartNew(int(totalSize))
-	defer bar.Finish()
+	bar := progressbar.NewOptions64(totalSize,
+		progressbar.OptionShowIts(),
+		progressbar.OptionShowCount(),
+	)
 
 	keySize, _ = c.todo.DbSize().Result()
 	keys = make([]string, keySize*2)
 	i := 0
 	iter := c.todo.Scan(0, "", 0).Iterator()
 	for iter.Next() {
-		bar.Increment()
+		bar.Add(1)
 		keys[i] = iter.Val()
 		i++
 	}
@@ -327,7 +331,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.doing.Scan(0, "", 0).Iterator()
 	for iter.Next() {
-		bar.Increment()
+		bar.Add(1)
 		keys[i] = iter.Val()
 		i++
 	}
@@ -342,7 +346,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.done.Scan(0, "", 0).Iterator()
 	for iter.Next() {
-		bar.Increment()
+		bar.Add(1)
 		keys[i] = iter.Val()
 		i++
 	}
@@ -357,7 +361,7 @@ func (c *Crawler) Dump() (allKeys []string, err error) {
 	i = 0
 	iter = c.trash.Scan(0, "", 0).Iterator()
 	for iter.Next() {
-		bar.Increment()
+		bar.Add(1)
 		keys[i] = iter.Val()
 		i++
 	}
@@ -635,10 +639,10 @@ func (c *Crawler) crawl(id int, jobs chan string) {
 
 func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 	// add beginning link
-	var bar *pb.ProgressBar
+	var bar *progressbar.ProgressBar
 	if len(seeds) > 100 {
 		log.Info("Adding seeds...")
-		bar = pb.StartNew(len(seeds))
+		bar = progressbar.New(len(seeds))
 		defer bar.Finish()
 	}
 	toForce := false
@@ -647,7 +651,7 @@ func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 	}
 	for _, seed := range seeds {
 		if len(seeds) > 100 {
-			bar.Increment()
+			bar.Add(1)
 		}
 		err = c.addLinkToDo(seed, toForce)
 		if err != nil {
@@ -661,7 +665,6 @@ func (c *Crawler) AddSeeds(seeds []string, force ...bool) (err error) {
 // Crawl initiates the pool of connections and begins
 // scraping URLs according to the todo list
 func (c *Crawler) Crawl() (err error) {
-	defer log.Flush()
 	defer c.stopCrawling()
 	log.Infof("\nStarting crawl on %s\n\n", c.Settings.BaseURL)
 	b, _ := json.MarshalIndent(c, "", " ")

@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	crawdad "github.com/schollz/crawdad/src"
+	crawdad "github.com/schollz/crawdad/v3/src"
 	"github.com/urfave/cli"
 )
 
